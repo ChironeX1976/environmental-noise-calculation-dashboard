@@ -199,16 +199,20 @@ def b_en_k_soundpaths(dir_audio, df, fld_time:str,fld_soundpath: str):
     dfsoundpaths = df[[fld_time,fld_soundpath]]
     # drop the empty rows
     dfsoundpaths = dfsoundpaths[~dfsoundpaths[fld_soundpath].isna()]
-    # create tmp field with target path
-    dfsoundpaths.loc[:,'tmp_targetpath'] = dir_audio
-    # create tmp field with audiofilename:  get sound - file name from original path
-    dfsoundpaths.loc[:,'tmp_filename'] = dfsoundpaths[fld_soundpath].apply(os.path.basename)
-    # join target filepath and the filename
-    dfsoundpaths[fld_soundpath]= dfsoundpaths['tmp_targetpath'].str.cat(dfsoundpaths['tmp_filename'], sep = os.sep)
-    # drop tmp fields
-    dfsoundpaths = dfsoundpaths[[fld_time, fld_soundpath]]
-    #reindex
-    dfsoundpaths = dfsoundpaths.reset_index(drop=True)
+    if len(dfsoundpaths) == 0:
+        print ('no audio data available')
+    else:
+        # create tmp field with target path
+        dfsoundpaths.loc[:,'tmp_targetpath'] = dir_audio
+        # create tmp field with audiofilename:  get sound - file name from original path
+        dfsoundpaths.loc[:,'tmp_filename'] = dfsoundpaths[fld_soundpath].apply(os.path.basename)
+        # join target filepath and the filename
+        dfsoundpaths[fld_soundpath]= dfsoundpaths['tmp_targetpath'].str.cat(dfsoundpaths['tmp_filename'], sep = os.sep)
+        # drop tmp fields
+        dfsoundpaths = dfsoundpaths[[fld_time, fld_soundpath]]
+        #reindex
+        dfsoundpaths = dfsoundpaths.reset_index(drop=True)
+
     # dataframe of soundpaths to list in format of dcc component
     lst = reform_df_to_dccdropdownlist(dfsoundpaths, fld_time,fld_soundpath)
     return lst, dfsoundpaths
