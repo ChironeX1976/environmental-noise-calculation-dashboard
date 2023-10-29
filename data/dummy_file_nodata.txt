@@ -1,0 +1,2 @@
+This is a dummy file to drag and drop in the dashboard 
+User will see that nothing happens because the file is not recognized as sound level meter data.
