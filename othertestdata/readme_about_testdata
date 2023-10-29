@@ -1,0 +1,4 @@
+If i have time...
+This app should be upgraded with a possiblilty to plot spectral data. 
+These example files can be used to test and implement this functionality and should be copied in the data folder for testing purposes.
+The app will probably crash as there is no audio data, and there is not yet error handling for it.
