@@ -191,7 +191,7 @@ def create_fig_spectrum(df, str_grafiektitel):
     fig = go.Figure()
     kleuren = ['grey', ] * 31  # 30 keer dezelfde kleur
     kleuren[30] = 'black'  # alleen de laatste is magenta
-    fig.add_trace(go.Bar(x=df['hz'], y=df['lzeq_t']))
+    fig.add_trace(go.Bar(x=df['hz'], y=df[df.columns[1]]))
 
     fig.update_traces(marker_color=kleuren)
 

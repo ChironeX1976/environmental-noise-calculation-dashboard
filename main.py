@@ -9,7 +9,7 @@ from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 
 from data import categorize_inputdata, data_prep, df_marker_apply, create_standarddf_of_markers_summary, \
-    saveas_standard_csv_in_data_dir, df_marker_rename, df_marker_add, dataprep_laeq
+    saveas_standard_csv_in_data_dir, df_marker_rename, df_marker_add, dataprep_laeq, dataprep_la95
 from definitions import file_is_from_invalid_folder, project_folder_and_path
 from audio import update_audio_source
 from plot import create_fig_time_vs_db, dct_timeannotationlayout, fig_add_annotation, \
@@ -196,11 +196,15 @@ def refreshstatistics(n_clicks, dct_summary,dct_markers):
                prevent_initial_call=True)
 def plotspectrum(n_clicks, marker, parameter, dct_df):
      # dataprep
-     df = dataprep_laeq(dct_df, marker)
-     titel = marker + ' ' + parameter
-     #plot
-     fig = create_fig_spectrum(df, titel)
-     return fig
+    if parameter =='Leq':
+         df = dataprep_laeq(dct_df, marker)
+         titel = marker + ' ' + parameter
+    else:
+        df = dataprep_la95(dct_df, marker)
+        titel = marker + ' ' + parameter
+    #plot
+    fig = create_fig_spectrum(df, titel)
+    return fig
 
 
 
