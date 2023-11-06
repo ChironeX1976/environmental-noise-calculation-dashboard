@@ -20,8 +20,8 @@ def standard_column_names():
     str_c_soundpath = "soundpath"
     str_c_exclude = "exclude"
     lst_c_percentiles = [["LA1", "LA5", "LA10", "LA50", "LA90", "LA95", "LA99"],[1, 5, 10, 50, 90, 95, 99]]
-    lst_c_summary = ['marker', 'laeq']
-    lst_c_summary.extend(lst_c_percentiles[0])
+    lst_c_summary = ['marker', 'laeq']              #used in the tab statistics
+    lst_c_summary.extend(lst_c_percentiles[0])      #used in the tab statistics
     return str_c_laeq1s, str_c_time, lst_c_percentiles, lst_c_summary, str_c_soundpath,str_c_exclude
 
 def standardize(df, str_c_soundpath, str_c_exclude, str_c_time,str_c_laeq1s):

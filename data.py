@@ -5,11 +5,7 @@ import pandas as pd
 from definitions import standard_column_names, folder_and_file_paths, standardize, standardfile_prefix
 import io
 import base64
-# def decode_and_code_to_iostring(content_string):
-#     """decodes string from from a dash core component - upload to iostring (readable for pandas)"""
-#     strdecoded = base64.b64decode(content_string)
-#     iostring = io.StringIO(strdecoded.decode('utf-8'))
-#     return iostring
+
 def categorize_inputdata(decoded):
     """Categorise type of sound level meter (slm),
        by reading the first 5 lines of the raw dataset (string),
@@ -41,12 +37,12 @@ def categorize_inputdata(decoded):
     return invalid, slmtype
 def data_prep(slmtype:str, decoded:str, filename:str):
     if slmtype == "Bruel and Kjaer-2250":
-        lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound = b_en_k_dataprep(decoded, filename)
+        lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo = b_en_k_dataprep(decoded, filename)
     elif slmtype == "standardized":
-        lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound = standard_dataprep(decoded, filename)
+        lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo = standard_dataprep(decoded, filename)
     else:
         print(slmtype, ", not programmed yet")
-    return lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound
+    return lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo
 
 def b_en_k_dataprep(decodeddata:str,f:str):
     """ Read BRUEL AND KJAER TXT file and prepare data.
@@ -62,6 +58,7 @@ def b_en_k_dataprep(decodeddata:str,f:str):
         dfsummary: dataframe with summary of statistics of marker (events)"""
 
     # get standard columnames and filepaths
+    spectralinfo='no spectral info in file'
     str_c_laeq1s, str_c_time, lst_c_percentiles, lst_c_summary, str_c_soundpath, str_c_exclude = standard_column_names()
     dir_root, dir_data, dir_audio, f= folder_and_file_paths(f)
     # read into pandas dataframe
@@ -85,12 +82,26 @@ def b_en_k_dataprep(decodeddata:str,f:str):
     df = df.merge(dfsoundpaths, on=['time'], how='left', suffixes=('_x', '_y'))
     df.drop(columns=[str_c_soundpath + '_x'], inplace=True)
     df.rename(columns={str_c_soundpath + '_y': str_c_soundpath}, inplace=True)
-    df = df.reset_index(drop=True)
+    df.reset_index(inplace=True, drop=True)
     # selection  interesting fields
     lst_interesting = lst_flds_a + lst_flds_m_used + [str_c_soundpath] + lst_flds_st
-    print('selecting datafields: ', lst_interesting)
     df = df[lst_interesting]
-    return lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound
+    print('check if spectrum data are available, if so: add spectrum columns')
+    # get spectrum filepath
+    spectrumfilepath = correspondingspectrumfilepath(f, dir_data)
+    # if file exists, then read loggedSpectra and merge with df
+    if os.path.exists(spectrumfilepath):
+        df_time_spec = pd.read_csv(spectrumfilepath, delimiter="\t", skiprows=0,
+                                   engine="python", decimal=',')
+        df_time_spec = standardize_spectrumdata(df_time_spec)
+        df_time_spec[str_c_time] = pd.to_datetime(df_time_spec[str_c_time], format='%d/%m/%Y %H:%M:%S')
+        df = pd.merge_ordered(df, df_time_spec, on=str_c_time, fill_method='ffil')
+        lst_interesting = lst_interesting + lst_standard_spectrumcolumn_names()
+        df = df[lst_interesting]
+        df.reset_index(inplace=True, drop=True)
+        spectralinfo = "Select marker, parameter and plot"
+    print('selecting datafields: ', lst_interesting)
+    return lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo
 
 def standard_dataprep(decodeddata:str,f:str):
     """Read STANDARD TXT file and prepare data. This STANDARD is created by another session of this program and saved
@@ -103,8 +114,9 @@ def standard_dataprep(decodeddata:str,f:str):
         lst_flds_m_used: list of fields with markers of events during measurement
         begintime: timestamp of the very first moment of the data
         df: dataframe
-        dfsummary: dataframe with summary of statistics of marker (events)"""
+        """
     # get standard columnames and filepaths
+    spectralinfo = "no spectral info in file"
     str_c_laeq1s, str_c_time, lst_c_percentiles, lst_c_summary, str_c_soundpath, str_c_exclude = standard_column_names()
     dir_root, dir_data, dir_audio, f = folder_and_file_paths(f)
     # read into pandas dataframe
@@ -114,7 +126,7 @@ def standard_dataprep(decodeddata:str,f:str):
     # get interesting fields
     lst_flds_a = col_lst_always(str_c_time, str_c_laeq1s)
     lst_flds_st = b_en_k_fldslst_stats()
-    lst_flds_m_used = std_fldslst_marker_all(df)
+    lst_flds_m_used = std_fldslst_marker_all(df, str_c_soundpath)
     # create time object
     df[str_c_time] = pd.to_datetime(df[str_c_time], format='%Y-%m-%d %H:%M:%S')
     begintime = df[str_c_time].min()
@@ -124,19 +136,27 @@ def standard_dataprep(decodeddata:str,f:str):
     lstsound, dfsoundpaths = std_soundpaths(dir_audio, df, lst_flds_a[0], str_c_soundpath)
     # selection  interesting fields
     lst_interesting = lst_flds_a + lst_flds_m_used + [str_c_soundpath] + lst_flds_st
+    # check if spectrum columns are in dataframe, if there are more interesting fields
+    if set(lst_standard_spectrumcolumn_names()).issubset(set(df.columns)):
+        lst_interesting = lst_interesting + lst_standard_spectrumcolumn_names()
+        df = df[lst_interesting]
+        spectralinfo = "Select marker, parameter and plot"
+    else:
+        df = df[lst_interesting]
     print('selecting datafields: ', lst_interesting)
-    df = df[lst_interesting]
-    return lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound
+    return lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo
 
 
-def std_fldslst_marker_all(df):
+def std_fldslst_marker_all(df, str_c_soundpath):
     """get all fields whith marker data in list
-    marker data-value is always 0 or 1 and nothing else
+    marker data-value is always np.nan or 1 and nothing else
+    :exception soundpath this is a columname that can be completely empty but it is not a marker
     """
     lst = []
     for c in df.columns.tolist():
-        if df[c].isin([np.nan, 1]).all():
-             lst.append(c)
+        if c is not str_c_soundpath:
+            if df[c].isin([np.nan, 1]).all():
+                lst.append(c)
     return lst
 
 def b_en_k_fldslst_marker_all(df):
@@ -248,8 +268,8 @@ def df_get_index_in_df (df, strtimecolumn, strtimestart, strtimestop):
     i_start = int(df.loc[df[strtimecolumn] == strtimestart].index[0])
     i_stop = int(df.loc[df[strtimecolumn] == strtimestop].index[0])
     return i_start, i_stop
-def df_marker_edit (dct_df, strmarkercolumn, strtimestart, strtimestop, val):
-    """change a marker in a dataframe between two time values
+def df_marker_apply (dct_df, strmarkercolumn, strtimestart, strtimestop, val):
+    """apply a marker in a dataframe between two time values
     :param:
     dct_df: a dictionary of a dataframe (from a dcc.store component)
     strtimecolumn = string of the time columnname in the dataframe
@@ -325,14 +345,24 @@ def df_marker_add(dct_df, newname, dct_markers):
         dct_df = df.to_dict("records")
     return valid, dct_df, dct_markers
 
-def saveas_standard_csv_in_data_dir(dct_df,dir_data, filename):
-    prefix = standardfile_prefix()
+def saveas_standard_csv_in_data_dir(dct_df,dir_data, filename, columnsalways, columnsmarkers, kolomvolgorde):
+    prefix = standardfile_prefix() # std_
     str_c_laeq1s, str_c_time, lst_c_percentiles, lst_c_summary, str_c_soundpath,str_c_exclude = standard_column_names()
-    if filename[0:4] == prefix:
-        prefix = ''
-    filename = prefix + filename
+    lst_filename = os.path.splitext(filename)[0].rsplit("_")
+    # if the current filename has already a prefix, then remove the prefix before saving
+    if len(lst_filename) == 2:
+        if lst_filename[0]==prefix[0:3]:
+            filename = filename
+        else:
+            filename = prefix + lst_filename[0] + '.txt'
     df = pd.DataFrame(dct_df)
     df[str_c_time] = pd.to_datetime(df[str_c_time], format='%Y-%m-%d %H:%M:%S')
+    # dictionaries 'forget' the column order
+    lst = columnsalways + columnsmarkers
+    for k in kolomvolgorde:
+        if k not in lst:
+            lst.append(k)
+    df = df[lst]
     df.to_csv(os.path.join(dir_data,filename), sep="\t", index=False)
     return
 
@@ -351,8 +381,9 @@ def logmean_of_column(df_in, str_col):
 def Ln_of_column(df_in, str_col, lst_Ln):
     """calculate percentiles of a column in a dataframe
         :param:
-            dataframe
-            column
+            dataframe with time series
+            column of which percentiles are calculated
+            lst_Ln: list of percentiles to be calculated
         """
     lst_rslt_Ln = []
     if len(df_in)<10: #errorhandling
@@ -388,6 +419,136 @@ def create_standarddf_of_markers_summary (dct_df, dct_markers):
     dct_dfsummary = dfsummary.to_dict('records')
     return dct_dfsummary
 
+def correspondingspectrumfilepath(bbfile, dir_data):
+    """ defines the standard name of the spectrumfile based on the broadband file
+    :param  the name of the broadband file,
+    :return:the name of the spectrumfilepath is returned
+    """
+
+    spectrumfilepath = os.path.basename(bbfile)
+    spectrumfilepath = spectrumfilepath.split(".")[0]
+    spectrumfilepath = spectrumfilepath.split("_")[0]
+    spectrumfilepath = spectrumfilepath + "_LoggedSpectra.txt"
+    spectrumfilepath = os.path.join(dir_data,spectrumfilepath)
+    return spectrumfilepath
+
+def standardize_spectrumdata(df):
+    """change the columnames in dataframe to a standard choice"""
+    str_c_laeq1s, str_c_time, lst_c_percentiles, lst_c_summary, str_c_soundpath, str_c_exclude = standard_column_names()
+    lst_spctr_spellings = lst_spectra_spellings()                 # list of spectra-spellings eg. 50Hz = 50 hz = 50 Hz
+    lst_stndrd_spectrcols= lst_standard_spectrumcolumn_names()  # list of the spectrum-spelling that i choose
+    # loop through columns of df (spectrum data)
+    for c in df.columns.tolist():
+        # rename column time in standard columname
+        if c in ['Start Time', 'starttime', 'Start time', 'start Time']:
+            df.rename(columns={c: str_c_time}, inplace=True)
+        # rename frequencies in standard columname
+        for lst_sp in lst_spctr_spellings:
+            if c in lst_sp:
+                freqindx = (lst_sp.index(c)) # get index of columname that is found
+                # rename with corresponding index from the standard column-names
+                df.rename(columns={c: lst_stndrd_spectrcols[freqindx]}, inplace=True)
+    lst_cols_keep = [str_c_time]
+    lst_cols_keep.extend(lst_stndrd_spectrcols)
+    return df[lst_cols_keep]
+def lst_spectra_spellings():
+    """Even when the same brand of sound level meter is used, the column-names for terts-band frequencies
+    that it spits out can differ.
+    Here is a list of all the spellings that i found
+    I am not interested in lower than 25 Hz and higher than 20 kHz"""
+    lst = ['LZeq25Hz', 'LZeq31.5Hz', 'LZeq40Hz', 'LZeq50Hz', 'LZeq63Hz', 'LZeq80Hz', 'LZeq100Hz',
+                 'LZeq125Hz', 'LZeq160Hz', 'LZeq200Hz', 'LZeq250Hz', 'LZeq315Hz', 'LZeq400Hz', 'LZeq500Hz',
+                 'LZeq630Hz', 'LZeq800Hz', 'LZeq1kHz', 'LZeq1.25kHz', 'LZeq1.6kHz', 'LZeq2kHz', 'LZeq2.5kHz',
+                 'LZeq3.15kHz', 'LZeq4kHz', 'LZeq5kHz', 'LZeq6.3kHz', 'LZeq8kHz', 'LZeq10kHz', 'LZeq12.5kHz',
+                 'LZeq16kHz', 'LZeq20kHz'],\
+          ['LZeq25Hz', 'LZeq31.5Hz', 'LZeq40Hz', 'LZeq50Hz', 'LZeq63Hz', 'LZeq80Hz', 'LZeq100Hz',
+                 'LZeq125Hz', 'LZeq160Hz', 'LZeq200Hz', 'LZeq250Hz', 'LZeq315Hz', 'LZeq400Hz', 'LZeq500Hz',
+                 'LZeq630Hz', 'LZeq800Hz', 'LZeq1kHz', 'LZeq1.25kHz', 'LZeq1.6kHz', 'LZeq2kHz', 'LZeq2.5kHz',
+                 'LZeq3.15kHz', 'LZeq4kHz', 'LZeq5kHz', 'LZeq6.3kHz', 'LZeq8kHz', 'LZeq10kHz', 'LZeq12.5kHz',
+                 'LZeq16kHz', 'LZeq20kHz'],\
+          ['LZeq 25Hz', 'LZeq 31.5Hz', 'LZeq 40Hz', 'LZeq 50Hz', 'LZeq 63Hz', 'LZeq 80Hz', 'LZeq 100Hz',
+                 'LZeq 125Hz', 'LZeq 160Hz', 'LZeq 200Hz', 'LZeq 250Hz', 'LZeq 315Hz', 'LZeq 400Hz', 'LZeq 500Hz',
+                 'LZeq 630Hz', 'LZeq 800Hz', 'LZeq 1kHz', 'LZeq 1.25kHz', 'LZeq 1.6kHz', 'LZeq 2kHz', 'LZeq 2.5kHz',
+                 'LZeq 3.15kHz', 'LZeq 4kHz', 'LZeq 5kHz', 'LZeq 6.3kHz', 'LZeq 8kHz', 'LZeq 10kHz', 'LZeq 12.5kHz',
+                 'LZeq 16kHz', 'LZeq 20kHz'],\
+          ['lzeq25hz', 'lzeq31.5hz', 'lzeq40hz', 'lzeq50hz', 'lzeq63hz', 'lzeq80hz', 'lzeq100hz',
+                 'lzeq125hz', 'lzeq160hz', 'lzeq200hz', 'lzeq250hz', 'lzeq315hz', 'lzeq400hz', 'lzeq500hz',
+                 'lzeq630hz', 'lzeq800hz', 'lzeq1khz', 'lzeq1.25khz', 'lzeq1.6khz', 'lzeq2khz', 'lzeq2.5khz',
+                 'lzeq3.15khz', 'lzeq4khz', 'lzeq5khz', 'lzeq6.3khz', 'lzeq8khz', 'lzeq10khz', 'lzeq12.5khz',
+                 'lzeq16khz', 'lzeq20khz'], \
+          ['lzeq25', 'lzeq31.5', 'lzeq40', 'lzeq50', 'lzeq63', 'lzeq80', 'lzeq100',
+           'lzeq125', 'lzeq160', 'lzeq200', 'lzeq250', 'lzeq315', 'lzeq400', 'lzeq500',
+           'lzeq630', 'lzeq800', 'lzeq1000', 'lzeq1250', 'lzeq1600', 'lzeq2000', 'lzeq2500',
+           'lzeq3150', 'lzeq4000', 'lzeq5000', 'lzeq6300', 'lzeq8000', 'lzeq10000', 'lzeq12500',
+           'lzeq16000', 'lzeq20000'], \
+          ['25', '31.5', '40', '50', '63', '80', '100', '125', '160', '200', '250', '315', '400', '500',
+           '630', '800', '1000', '1250', '1600', '2000', '2500', '3150', '4000', '5000', '6300', '8000', '10000', '12500',
+           '16000', '20000'], \
+          ['25', '31.5', '40', '50', '63', '80', '100', '125', '160', '200', '250', '315', '400', '500',
+           '630', '800', '1k', '1.25k', '1.6k', '2k', '2.5k', '3.15k', '4k', '5k', '6.3k', '8k', '10k',
+           '12.5k','16k', '20k'], \
+          [25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500,
+           630, 800, 1000, 1250, 1600, 2000, 2500,3150, 4000,5000, 6300, 8000, 10000, 12500,
+           16000, 20000]
+    return lst
+
+def lst_tertsbandweging(strtype):
+    # 30 in totaal, start: 25Hz end: 20000Hz
+    lst=[]
+    if strtype == 'Z':
+        lst = [0, ] * 30
+    if strtype == 'A':
+        lst = [-44.7, -39.5, -34.5, -30.3, -26.2, -22.4,
+                  -19.1, -16.2, -13.2, -10.8, -8.7,
+                  -6.6, -4.8, -3.2, -1.9, -0.8,
+                  0, 0.6, 1, 1.2, 1.3,
+                  1.2, 1, 0.5, -0.1, -1.1,
+                  -2.5, -4.3, -6.7, -9.3]
+    return lst
+
+def lst_standard_spectrumcolumn_names():
+    """Even when the same brand of sound level meter is used, the columnnames can differ.
+    From the list of spellings, list number 6 is chosen as standard:
+    no spaces, no capitals, no special charachters, so no troubles"""
+    choice = 6
+    lst = lst_spectra_spellings()[choice]
+    return lst
+
+def dataprep_laeq(dct_df, m):
+    """calculate laeq of spectrum
+    :param
+        dataframe of the time series, containing spectrum columns
+    :returns
+        dataframe with spectrum"""
+    # calculate the laeq of the broadband parameter
+    # (for debugging purposes: this should be equal to calculated laeq of all the tertsbands
+    # laeqbroadband = logmean_of_column(df,str_c_laeq1s)
+    # calculate logmean for each tertsband-column and put in a list
+    df = pd.DataFrame(dct_df)
+    # apply marker selection
+    df = df.loc[df[m] == 1 & (df['exclude'].isnull())]
+    lst_spec_cols = lst_standard_spectrumcolumn_names()
+    lst_logmean=[]
+    for sp in lst_spec_cols:
+        lst_logmean.append((logmean_of_column(df,sp)))
+
+    # list of a-weightings
+    lst_aweight = lst_tertsbandweging('A')
+    # make a spectrum data dictionary and create a dataframe
+    dct_spec_data = {'hz': lst_spec_cols, 'lzeq_t': lst_logmean, 'aweight': lst_aweight }
+    df_spectrum = pd.DataFrame(data = dct_spec_data)
+    # calculate the laeq-value of all the tertsbands, this should be equal to laeqbroadband
+    df_spectrum['laeq_t']= df_spectrum['lzeq_t']+df_spectrum['aweight']
+    laeqfromspec = round(10 * np.log10((10 ** ((df_spectrum['laeq_t']) / 10)).sum()),1)
+
+
+    # debug
+    # print (laeqbroadband,laeqfromspec)
+    # add laeq from spectrum to spectrum dataframe by making a tmp mini dataframe
+    df_tmp = {'hz': 'LAeq', 'lzeq_t':laeqfromspec}
+    df_spectrum = df_spectrum.append(df_tmp, ignore_index = True)
+
+    return df_spectrum
 
 # #
 # str_c_laeq1s, str_c_time, lst_c_percentiles, lst_c_summary, str_c_soundpath, str_c_exclude, str_c_time = definitions.standard_column_names()

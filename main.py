@@ -8,15 +8,17 @@ from dash import dash, html, Patch
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 
-from data import categorize_inputdata, data_prep, df_marker_edit, create_standarddf_of_markers_summary, \
-    saveas_standard_csv_in_data_dir, df_marker_rename, df_marker_add
+from data import categorize_inputdata, data_prep, df_marker_apply, create_standarddf_of_markers_summary, \
+    saveas_standard_csv_in_data_dir, df_marker_rename, df_marker_add, dataprep_laeq
 from definitions import file_is_from_invalid_folder, project_folder_and_path
 from audio import update_audio_source
 from plot import create_fig_time_vs_db, dct_timeannotationlayout, fig_add_annotation, \
-    fig_patch_updated_marker, domain_get_start_end, fig_patch_renamed_marker, fig_patch_added_marker
+    fig_patch_updated_marker, domain_get_start_end, fig_patch_renamed_marker, fig_patch_added_marker, create_fig_spectrum
+
 from components import c_total_layout
 
 folder_root, folder_data = project_folder_and_path()
+
 # ######################################################################################
 # # #########                 BUILD DASHBOARD                                  #########
 # ######################################################################################
@@ -81,7 +83,7 @@ def markers_erase(n_clicks, dct_df,fig, marker, starttime, endtime):
         raise PreventUpdate
     else:
         # change data
-        dct_df = df_marker_edit(dct_df, marker, starttime, endtime, 0)
+        dct_df = df_marker_apply(dct_df, marker, starttime, endtime, 0)
         # patch new data into figure
         patched_figure = fig_patch_updated_marker(fig, marker, dct_df)
     return n_clicks, patched_figure, dct_df
@@ -101,7 +103,7 @@ def markers_draw(n_clicks, dct_df, fig, marker, starttime, endtime):
         raise PreventUpdate
     else:
         # change data
-        dct_df = df_marker_edit(dct_df, marker, starttime, endtime, 1)
+        dct_df = df_marker_apply(dct_df, marker, starttime, endtime, 1)
         # patch new data into figure
         patched_figure = fig_patch_updated_marker(fig, marker, dct_df)
     return n_clicks, patched_figure, dct_df
@@ -120,13 +122,13 @@ def marker_editsection_setinvisible(n_clicks):
 
 @ app.callback(Output('cl_div_addandrenamesection','hidden', allow_duplicate=True),
                Output('cl_store_df', 'data', allow_duplicate=True),
-               Output("cl_store_flds_m_us", 'data', allow_duplicate=True),
-                Output("cl_markers_used","options", allow_duplicate=True),
+               Output("cl_store_c_markers", 'data', allow_duplicate=True),
+                #Output("cl_markers_used","options", allow_duplicate=True),
                 Output("cl_fig_timeseries", 'figure', allow_duplicate=True),
                State('cl_store_df', 'data'),
-               State("cl_store_flds_m_us", 'data'),
+               State("cl_store_c_markers", 'data'),
                State('cl_markers_used', 'value'),
-               State('cl_marker_inp_add_or_rename', 'value'),
+               State('cl_inp_marker_add_or_rename', 'value'),
                State('cl_fig_timeseries', 'figure'),
                Input('cl_marker_btnrename','n_clicks'),
                prevent_initial_call=True)
@@ -138,16 +140,16 @@ def marker_rename(dct_df, dct_markers, oldmarkername, newmarkername, fig, n_clic
     else:
         # patch new data into figure
         patched_figure = fig_patch_renamed_marker(fig,newmarkername,oldmarkername)
-    return True, dct_df, dct_markers, dct_markers, patched_figure
+    return True, dct_df, dct_markers,  patched_figure
 
 @ app.callback(Output('cl_div_addandrenamesection','hidden', allow_duplicate=True),
                Output('cl_store_df', 'data', allow_duplicate=True),
-               Output("cl_store_flds_m_us", 'data', allow_duplicate=True),
-                Output("cl_markers_used","options", allow_duplicate=True),
+               Output("cl_store_c_markers", 'data', allow_duplicate=True),
+               #Output("cl_markers_used","options", allow_duplicate=True),
                 Output("cl_fig_timeseries", 'figure', allow_duplicate=True),
                State('cl_store_df', 'data'),
-               State("cl_store_flds_m_us", 'data'),
-               State('cl_marker_inp_add_or_rename', 'value'),
+               State("cl_store_c_markers", 'data'),
+               State('cl_inp_marker_add_or_rename', 'value'),
                State('cl_fig_timeseries', 'figure'),
                Input('cl_marker_btnadd','n_clicks'),
                prevent_initial_call=True)
@@ -159,7 +161,16 @@ def marker_add(dct_df, dct_markers, newmarkername, fig, n_clicks):
     else:
         # patch new data into figure
         patched_figure = fig_patch_added_marker(fig, newmarkername)
-    return True, dct_df, dct_markers, dct_markers, patched_figure
+    return True, dct_df, dct_markers,  patched_figure
+
+
+@app.callback(Output('cl_drp_markers_spec', 'options'),
+              Output('cl_markers_used', 'options'),
+              Input('cl_store_c_markers','data'),
+              prevent_intial_call = True)
+def refresh (dct_markers):
+    return dct_markers, dct_markers
+
 # --------------------------------------------------------------------------------------
 # ------------                 STATISTICS refresh                           ------------
 # --------------------------------------------------------------------------------------
@@ -167,7 +178,7 @@ def marker_add(dct_df, dct_markers, newmarkername, fig, n_clicks):
               Output("cl_tbl_markersummary", 'data'),
               Input('cl_btnstatrefresh', 'n_clicks'),
               State("cl_store_df", 'data'),
-              State("cl_store_flds_m_us", 'data'),
+              State("cl_store_c_markers", 'data'),
               prevent_initial_call=True)
 def refreshstatistics(n_clicks, dct_summary,dct_markers):
     # update data of the summary statistics dataframe
@@ -175,15 +186,37 @@ def refreshstatistics(n_clicks, dct_summary,dct_markers):
     return n_clicks, dct_dfsummary
 
 # --------------------------------------------------------------------------------------
+# ------------                 PLOT SPECTRUM                                ------------
+# --------------------------------------------------------------------------------------
+@app.callback(Output('cl_fig_spect', 'figure'),
+               Input('cl_btn_plotspec', 'n_clicks'),
+               State('cl_drp_markers_spec', 'value'),
+                State('cl_drp_LnLeq_spec', 'value'),
+                State("cl_store_df", 'data'),
+               prevent_initial_call=True)
+def plotspectrum(n_clicks, marker, parameter, dct_df):
+     # dataprep
+     df = dataprep_laeq(dct_df, marker)
+     titel = marker + ' ' + parameter
+     #plot
+     fig = create_fig_spectrum(df, titel)
+     return fig
+
+
+
+# --------------------------------------------------------------------------------------
 # ------------         SAVE DATA after editing                              ------------
 # --------------------------------------------------------------------------------------
-@app.callback(Output("cl_hlp_save", 'children'),
+@app.callback (Output("cl_hlp_save", 'children'),
               Input('cl_btn_save', 'n_clicks'),
               State("cl_store_df", 'data'),
               State('cl_hlp_filename','children'),
+            State('cl_store_c_always', 'data'),
+            State('cl_store_c_markers', 'data'),
+            State('cl_hlp_columnorder', 'children'),
               prevent_initial_call=True)
-def save(n_clicks, dct_df, filename):
-    saveas_standard_csv_in_data_dir(dct_df,folder_data,filename)
+def save(n_clicks, dct_df, filename, col_always,col_markers,col_order):
+    saveas_standard_csv_in_data_dir(dct_df,folder_data,filename, col_always,col_markers,col_order)
     return n_clicks
 # --------------------------------------------------------------------------------------
 # ------------         INITIAL DATA LOAD into dash app                      ------------
@@ -194,11 +227,12 @@ def save(n_clicks, dct_df, filename):
     Output ('cl_hlp_figure', 'children'),
     Output('cl_begintime','children', allow_duplicate=True),
     Output("cl_store_df", 'data'),
-    Output("cl_store_flds_a", 'data'),
-    Output("cl_store_flds_m_us", 'data'),
+    Output("cl_store_c_always", 'data'),
+    Output("cl_store_c_markers", 'data'),
     Output("cl_fig_timeseries", 'figure', allow_duplicate=True),
     Output("cl_drop_audiotimeandfile", "options"),
-    Output("cl_markers_used","options"),
+   Output("cl_spectstatus","children"),
+    Output("cl_hlp_columnorder", "children"),
     Input('cl_upload01', 'contents'),
     State('cl_upload01', 'filename'),
     prevent_initial_call=True
@@ -207,9 +241,10 @@ def save(n_clicks, dct_df, filename):
 def load_data_into_layout(strcontent,f):
     # initialize empty dictionaries,  lists and dummies
     dfdict, dfsummarydict, fig = dict(), dict(), dict()
-    lst_flds_a, lst_flds_m_used, lstsound = [], [],[]
+    lst_flds_a, lst_flds_m_used, lstsound, kolomvolgorde = [], [],[],[]
     figurestatus = "figure not loaded yet"
     begintime = "1976-07-02 23:30:00" # my dummy birthday
+    spectralinfo = "there is no spectral info"
     # check if file is dropped from the datafolder, if not from datafolder: stop
     invalid, status = file_is_from_invalid_folder(f, folder_data)
     if not invalid: # check sonometer-type
@@ -220,14 +255,18 @@ def load_data_into_layout(strcontent,f):
         invalid, status = categorize_inputdata(decoded)
     # data preparation only if sonometer-type is known
     if not invalid:
-        lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound =\
+        lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo =\
             data_prep(slmtype=status, decoded=decoded, filename=f)
+        # store column-order for saving (dictionaries don't preserve this order)
+        kolomvolgorde = df.columns.to_list()
         # put the dataframe in dcc store as a dict for later use
         dfdict = df.to_dict("records")
         fig = create_fig_time_vs_db(df, lst_flds_a, lst_flds_m_used)
         fig_add_annotation(fig,begintime)
         figurestatus = "figure loaded"
-    return status, f, figurestatus, begintime, dfdict, lst_flds_a, lst_flds_m_used, fig, lstsound,lst_flds_m_used
+    return status, f, figurestatus, begintime, \
+           dfdict, lst_flds_a, lst_flds_m_used, \
+           fig, lstsound, spectralinfo, kolomvolgorde
 
 # ######################################################################################
 # #########          CALLBACK client-side (audio annotation on figure)         #########

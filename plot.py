@@ -184,9 +184,24 @@ def domain_get_start_end(dct_relayoutdata):
         except IndexError:
             pass
     return begin, einde
+def create_fig_spectrum(df, str_grafiektitel):
+    # input: xwaarden, ywaarden as dataframe
+    # example call function as: plotspectrum(df2['terts'], df2['dBA'])
 
-def create_fig_spect():
-    fig_spect = go
-    return fig_spect
+    fig = go.Figure()
+    kleuren = ['grey', ] * 31  # 30 keer dezelfde kleur
+    kleuren[30] = 'black'  # alleen de laatste is magenta
+    fig.add_trace(go.Bar(x=df['hz'], y=df['lzeq_t']))
+
+    fig.update_traces(marker_color=kleuren)
+
+    fig.update_layout(title=str_grafiektitel,
+                      xaxis=dict(title='herz', zeroline=False, showgrid=False, tickangle=270),
+                      yaxis=dict(title='dBZ', zeroline=False, showgrid=True, gridwidth=1, gridcolor='grey'))
+    fig.update_layout(title=str_grafiektitel, title_x=0.5, plot_bgcolor="white")
+    return fig
+# def create_fig_spect():
+#     fig_spect = go
+#     return fig_spect
 
 #print(dct_timeannotationlayout(datetime.datetime(2021, 11, 16, 9, 0, 0)))

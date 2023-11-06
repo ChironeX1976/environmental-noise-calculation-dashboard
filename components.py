@@ -60,7 +60,7 @@ def c_tab_time():
                      children=
             [
 
-                dcc.Input(id="cl_marker_inp_add_or_rename", placeholder="enter marker name",
+                dcc.Input(id="cl_inp_marker_add_or_rename", placeholder="enter marker name",
                       style={"verticalAlign": "top", 'display': 'inline-block', 'height': '33px'}),
                 dbc.Button(id="cl_marker_btnrename", children="rename", color="warning", size="sm",
                            style={"verticalAlign": "top", 'display': 'inline-block', 'height': '33px'}),
@@ -94,10 +94,30 @@ def c_tab_stats():
         ])], className="border border-5 bg-secondary vh-100"))
     return c
 def c_tab_spect():
-    c = html.Div(dbc.Row([
-        html.Div(children="Here will be a tool to plot a spectrum figure soon...")
-    ],
-        className="border border-5 bg-secondary vh-100"))
+    c = html.Div([
+        dbc.Row([html.Div(id='cl_spectstatus',
+                          children="If there is spectral information: select marker and acoustic parameter..."),
+                 html.Div(children=
+                 [html.Div(dcc.Dropdown(id='cl_drp_markers_spec', placeholder="Select marker",
+                              # options=lst_m_us,
+                              # value=lst_m_us[0],
+                              clearable=False,
+                              style={'width': '100%', 'height': '33px', 'display': 'inline-block'}
+                               ),style={'width': '10%', 'height': '33px', 'display': 'inline-block'}),
+                  html.Div(dcc.Dropdown(id='cl_drp_LnLeq_spec', placeholder="Select parameter",
+                                        options=['Leq', 'L95'],
+                                        value='Leq',
+                                        clearable=False,
+                                        style={'width': '100%', 'height': '33px', 'display': 'inline-block'}
+                                        ), style={'width': '10%', 'height': '33px', 'display': 'inline-block'}),
+                  dbc.Button(id="cl_btn_plotspec", children="(re)plot", color="primary", size="sm",
+                             style={'width': 'auto', "verticalAlign": "top", 'display': 'inline-block', 'height': '33px'}
+                             )
+                  ],style={"width": "100%", "height": "33px", 'display': 'inline-block'})],
+                className="border border-5 bg-secondary"),
+        dbc.Row(children=[dcc.Graph(id='cl_fig_spect', config={"modeBarButtonsToRemove": ['lasso2d']})],
+                className="border border-5 bg-secondary")
+        ])
     return c
 def c_tabs_together():
     """3 tabs together: time, stat and spect"""
@@ -134,10 +154,11 @@ def c_divhelpfields():
         html.Div(id="cl_hlp_save", children="button save not yet used", hidden=False,
                  style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
         html.Div(id="cl_hlp_figure", children="figure not loaded yet", hidden = False),
+        html.Div(id="cl_hlp_columnorder", children="Columns are ordered like this: ..."),
         html.Div(dcc.Store(id='cl_store_df', data=dict())),
-        html.Div(dcc.Store(id='cl_store_flds_a', data=dict())),
-        html.Div(dcc.Store(id='cl_store_flds_m_us', data=dict()))
-    ], hidden=False)
+        html.Div(dcc.Store(id='cl_store_c_always', data=dict())),
+        html.Div(dcc.Store(id='cl_store_c_markers', data=dict()))
+    ], hidden=True)
     return c
 def c_total_layout():
     c = dbc.Container([
