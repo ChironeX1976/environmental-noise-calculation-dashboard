@@ -5,7 +5,7 @@ import pandas as pd
 from definitions import standard_column_names, folder_and_file_paths, standardize, standardfile_prefix
 import io
 import base64
-
+import ntpath
 def categorize_inputdata(decoded):
     """Categorise type of sound level meter (slm),
        by reading the first 5 lines of the raw dataset (string),
@@ -225,7 +225,8 @@ def b_en_k_soundpaths(dir_audio, df, fld_time:str,fld_soundpath: str):
         # create tmp field with target path
         dfsoundpaths.loc[:,'tmp_targetpath'] = dir_audio
         # create tmp field with audiofilename:  get sound - file name from original path
-        dfsoundpaths.loc[:,'tmp_filename'] = dfsoundpaths[fld_soundpath].apply(os.path.basename)
+        # in LINUX machines ntpath is used in other cases: os.path is used
+        dfsoundpaths.loc[:,'tmp_filename'] = dfsoundpaths[fld_soundpath].apply(ntpath.basename)
         # join target filepath and the filename
         dfsoundpaths[fld_soundpath]= dfsoundpaths['tmp_targetpath'].str.cat(dfsoundpaths['tmp_filename'], sep = os.sep)
         # drop tmp fields
