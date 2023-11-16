@@ -578,7 +578,7 @@ def dataprep_la95(dct_df, m):
     #print ('difference broadband and spectrum l95:', round(difference,1))
     # do something with that difference
     # --> this is rubbish but i 'm doing it anyway
-    df_spectrum['la95_t'] = df_spectrum['la95_t']+0.4
+    df_spectrum['la95_t'] = df_spectrum['la95_t']+difference
     la95fromspec = round(10 * np.log10((10 ** ((df_spectrum['la95_t']) / 10)).sum()), 1)
     # add la95 from spectrum to spectrum dataframe by making a tmp mini dataframe with one record
     df_tmp = {'hz': 'LA95', 'lz95_t':la95fromspec}
