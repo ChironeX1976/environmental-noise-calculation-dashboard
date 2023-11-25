@@ -23,7 +23,9 @@ def standard_column_names():
     lst_c_summary = ['marker', 'laeq']              #used in the tab statistics
     lst_c_summary.extend(lst_c_percentiles[0])      #used in the tab statistics
     return str_c_laeq1s, str_c_time, lst_c_percentiles, lst_c_summary, str_c_soundpath,str_c_exclude
-
+def lstlaeqspellings():
+    lst = ['LAeq', 'lAeq', 'LAEQ1S', 'LAeq1s', 'laeq1s']
+    return lst
 def standardize(df, str_c_soundpath, str_c_exclude, str_c_time,str_c_laeq1s):
     """Although the same instrument, sometimes different column names are used in exportdata from the device.
     Here, standards are introduced as the file is read.
@@ -31,7 +33,7 @@ def standardize(df, str_c_soundpath, str_c_exclude, str_c_time,str_c_laeq1s):
         df: dataframe
         str_c_soundpath: string in which the sound path is stored"""
     for c in df.columns.tolist():
-        if c in ['LAeq', 'lAeq', 'LAEQ1S', 'LAeq1s', 'laeq1s']:
+        if c in lstlaeqspellings():
             df.rename(columns={c:str_c_laeq1s}, inplace=True)
         if c in ['Start Time', 'starttime', 'Start time', 'start Time']:
             df.rename(columns={c:str_c_time}, inplace=True)

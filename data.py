@@ -2,7 +2,7 @@ import os
 from collections import Counter
 import numpy as np
 import pandas as pd
-from definitions import standard_column_names, folder_and_file_paths, standardize, standardfile_prefix
+from definitions import standard_column_names, folder_and_file_paths, standardize, standardfile_prefix, lstlaeqspellings
 import io
 import base64
 import ntpath
@@ -20,7 +20,7 @@ def categorize_inputdata(decoded):
     # read first 5 lines of dataset. the \t is tricky. sometimes it crashes. errorhandling should be programmed later
     df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), delimiter="\t", engine="python", decimal=',')
     # categorize through some standard column-names
-    if df.columns[0] == "Project Name":     # bruel and kjaer - 2250
+    if df.columns[0] == "Project Name" and df.columns[4] in lstlaeqspellings():     # bruel and kjaer - 2250
         slmtype = lst_slmtypes[0]
         invalid = False
     elif df.columns[0] == 'time':           # a file created with this dashboard (based on any type of slm)
@@ -265,11 +265,27 @@ def reform_df_to_dccdropdownlist(df, fld_label:str, fld_value:str):
     lst = [{'label': d[fld_label], 'value': d[fld_value]} for d in dct]
     return lst
 
-def df_get_index_in_df (df, strtimecolumn, strtimestart, strtimestop):
-    i_start = int(df.loc[df[strtimecolumn] == strtimestart].index[0])
-    i_stop = int(df.loc[df[strtimecolumn] == strtimestop].index[0])
+def get_index_in_df (df, strtimecolumn, strtimestart, strtimestop):
+    """get the indexes of a selected domain between strtimestart and strtimestop
+    if the passed strtimestart or strtimestop is out of the boundaries of the dataframe, then the index does not exist.
+    this results in an error.
+    Therefore, in that case, the begin- and/or the end-index of the dataframe is returned.
+    :param:
+        dataframe
+        timecolumn in the dataframe
+        timestart string with timestamp
+        timestop string with timestamp
+    :return: indexes within dataframe"""
+    if df.loc[df[strtimecolumn] == strtimestart].size == 0:
+        i_start = df.index[0]
+    else:
+        i_start = int(df.loc[df[strtimecolumn] == strtimestart].index[0])
+    if df.loc[df[strtimecolumn] == strtimestop].size == 0:
+        i_stop = df.index[-1]
+    else:
+        i_stop = int(df.loc[df[strtimecolumn] == strtimestop].index[0])
     return i_start, i_stop
-def df_marker_apply (dct_df, strmarkercolumn, strtimestart, strtimestop, val):
+def marker_apply (dct_df, strmarkercolumn, strtimestart, strtimestop, val):
     """apply a marker in a dataframe between two time values
     :param:
     dct_df: a dictionary of a dataframe (from a dcc.store component)
@@ -286,15 +302,18 @@ def df_marker_apply (dct_df, strmarkercolumn, strtimestart, strtimestop, val):
         # make dataframe of dictionary
         df= pd.DataFrame(dct_df)
         # i do not understand, but the datetime is not a date-time column anymore, so first apply datetime
-        df[str_c_time] = pd.to_datetime(df[str_c_time], format='%Y-%m-%d %H:%M:%S')
+        df[str_c_time] = pd.to_datetime(df[str_c_time],
+                                        # format='%Y-%m-%d %H:%M:%S'    # does not work on a linuxmachine
+                                        # format="ISO8601")             # dos not work on a windows computer
+                                        format='%Y-%m-%dT%H:%M:%S')
         # get index in the dataframe of the start and stop marker
-        start, stop = df_get_index_in_df(df, str_c_time, strtimestart, strtimestop)
+        start, stop = get_index_in_df(df, str_c_time, strtimestart, strtimestop)
         # apply the value for the selected marker
         df.loc[start:stop, strmarkercolumn] = val
         # turn dataframe into dictionary again
         dct_df = df.to_dict("records")
     return dct_df
-def df_marker_rename_valid(oldname, newname,dct_markers):
+def marker_rename_validation(oldname, newname, dct_markers):
     valid = True
     if oldname =='exclude':
         print('exclude can not be changed')
@@ -308,7 +327,7 @@ def df_marker_rename_valid(oldname, newname,dct_markers):
         valid = False
     return valid
 
-def df_marker_add_valid(newname,dct_markers):
+def marker_add_validation(newname, dct_markers):
     valid = True
     if newname in dct_markers:
         print('no duplicate markers allowed')
@@ -316,10 +335,10 @@ def df_marker_add_valid(newname,dct_markers):
     elif newname is None:
         valid = False
     return valid
-def df_marker_rename(dct_df, oldname, newname, dct_markers):
+def marker_rename(dct_df, oldname, newname, dct_markers):
     """rename the markers: exclude cannot be renamed, also no duplicate names are allowed
     these exceptions are captured before getting further with this function"""
-    valid = df_marker_rename_valid(oldname, newname, dct_markers)
+    valid = marker_rename_validation(oldname, newname, dct_markers)
     if valid:
         # rename column in the df
         df = pd.DataFrame(dct_df)
@@ -332,10 +351,10 @@ def df_marker_rename(dct_df, oldname, newname, dct_markers):
         dct_df = df.to_dict("records")
     return valid, dct_df, dct_markers
 
-def df_marker_add(dct_df, newname, dct_markers):
+def marker_add(dct_df, newname, dct_markers):
     """add a marker: duplicate names are not allowed
     these exceptions are captured before getting further with this function"""
-    valid = df_marker_add_valid(newname, dct_markers)
+    valid = marker_add_validation(newname, dct_markers)
     if valid:
         # rename column in the df
         df = pd.DataFrame(dct_df)
@@ -423,7 +442,7 @@ def create_standarddf_of_markers_summary (dct_df, dct_markers):
 def correspondingspectrumfilepath(bbfile, dir_data):
     """ defines the standard name of the spectrumfile based on the broadband file
     :param  the name of the broadband file,
-    :return:the name of the spectrumfilepath is returned
+    :return:the name of the spectrumfilepath
     """
 
     spectrumfilepath = os.path.basename(bbfile)
@@ -464,9 +483,9 @@ def lst_spectra_spellings():
                  'LZeq16kHz', 'LZeq20kHz'],\
           ['LZeq25Hz', 'LZeq31.5Hz', 'LZeq40Hz', 'LZeq50Hz', 'LZeq63Hz', 'LZeq80Hz', 'LZeq100Hz',
                  'LZeq125Hz', 'LZeq160Hz', 'LZeq200Hz', 'LZeq250Hz', 'LZeq315Hz', 'LZeq400Hz', 'LZeq500Hz',
-                 'LZeq630Hz', 'LZeq800Hz', 'LZeq1kHz', 'LZeq1.25kHz', 'LZeq1.6kHz', 'LZeq2kHz', 'LZeq2.5kHz',
-                 'LZeq3.15kHz', 'LZeq4kHz', 'LZeq5kHz', 'LZeq6.3kHz', 'LZeq8kHz', 'LZeq10kHz', 'LZeq12.5kHz',
-                 'LZeq16kHz', 'LZeq20kHz'],\
+                 'LZeq630Hz', 'LZeq800Hz', 'LZeq1000Hz', 'LZeq1250Hz', 'LZeq1600Hz', 'LZeq2000Hz', 'LZeq2500Hz',
+                 'LZeq3150Hz', 'LZeq4000Hz', 'LZeq5000Hz', 'LZeq6300Hz', 'LZeq8000Hz', 'LZeq10000Hz', 'LZeq12500Hz',
+                 'LZeq16000Hz', 'LZeq20000Hz'],\
           ['LZeq 25Hz', 'LZeq 31.5Hz', 'LZeq 40Hz', 'LZeq 50Hz', 'LZeq 63Hz', 'LZeq 80Hz', 'LZeq 100Hz',
                  'LZeq 125Hz', 'LZeq 160Hz', 'LZeq 200Hz', 'LZeq 250Hz', 'LZeq 315Hz', 'LZeq 400Hz', 'LZeq 500Hz',
                  'LZeq 630Hz', 'LZeq 800Hz', 'LZeq 1kHz', 'LZeq 1.25kHz', 'LZeq 1.6kHz', 'LZeq 2kHz', 'LZeq 2.5kHz',
@@ -494,7 +513,7 @@ def lst_spectra_spellings():
     return lst
 
 def lst_tertsbandweging(strtype):
-    # 30 in totaal, start: 25Hz end: 20000Hz
+    # 30 in total, start: 25Hz end: 20000Hz
     lst=[]
     if strtype == 'Z':
         lst = [0, ] * 30
@@ -505,6 +524,8 @@ def lst_tertsbandweging(strtype):
                   0, 0.6, 1, 1.2, 1.3,
                   1.2, 1, 0.5, -0.1, -1.1,
                   -2.5, -4.3, -6.7, -9.3]
+    if strtype == 'C':
+        print("to be added later")
     return lst
 
 def lst_standard_spectrumcolumn_names():
@@ -532,7 +553,6 @@ def dataprep_laeq(dct_df, m):
     lst_logmean=[]
     for sp in lst_spec_cols:
         lst_logmean.append((logmean_of_column(df,sp)))
-
     # list of a-weightings
     lst_aweight = lst_tertsbandweging('A')
     # make a spectrum data dictionary and create a dataframe
@@ -541,17 +561,13 @@ def dataprep_laeq(dct_df, m):
     # calculate the laeq-value of all the tertsbands, this should be equal to laeqbroadband
     df_spectrum['laeq_t']= df_spectrum['lzeq_t']+df_spectrum['aweight']
     laeqfromspec = round(10 * np.log10((10 ** ((df_spectrum['laeq_t']) / 10)).sum()),1)
-
-
-    # debug
-    # print (laeqbroadband,laeqfromspec)
     # add laeq from spectrum to spectrum dataframe by making a tmp mini dataframe
     df_tmp = {'hz': 'LAeq', 'lzeq_t':laeqfromspec}
     df_spectrum = df_spectrum.append(df_tmp, ignore_index = True)
     return df_spectrum
 
 def dataprep_la95(dct_df, m):
-    """calculate la95 of spectrum
+    """calculate statistical parameter la95 of spectrum
     :param
         dataframe of the time series, containing spectrum columns
     :returns
