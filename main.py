@@ -8,7 +8,7 @@ from dash import dash, html, Patch
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 
-from data import categorize_inputdata, data_prep, marker_apply, create_standarddf_of_markers_summary, \
+from data import get_fileproperties, data_prep, marker_apply, create_standarddf_of_markers_summary, \
     saveas_standard_csv_in_data_dir, marker_rename, marker_add, dataprep_laeq, dataprep_la95
 from definitions import file_is_from_invalid_folder, project_folder_and_path
 from audio import update_audio_source
@@ -25,8 +25,6 @@ folder_root, folder_data = project_folder_and_path()
 # ######################################################################################
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.layout = c_total_layout()
-
-
 # ######################################################################################
 # #########                CALLBACKS server-side                               #########
 # ######################################################################################
@@ -56,8 +54,6 @@ def add_ann_to_fig(actualtimevalue, figurestatus):
     patched_figure["layout"]["annotations"].clear()
     patched_figure["layout"]["annotations"].extend([dct_timeannotationlayout(actualtimevalue)])
     return patched_figure
-
-
 # --------------------------------------------------------------------------------------
 # ------------           TIME SERIES - selection rectangle on fig           ------------
 # --------------------------------------------------------------------------------------
@@ -68,8 +64,6 @@ def add_ann_to_fig(actualtimevalue, figurestatus):
 def selectiondomain(relayoutdata):
     begin, einde = domain_get_start_end(relayoutdata)
     return begin, einde  # json.dumps(relayoutData, indent=2)
-
-
 # --------------------------------------------------------------------------------------
 # ------------          TIME SERIES - marker manipulations                # ------------
 # --------------------------------------------------------------------------------------
@@ -92,8 +86,6 @@ def markers_erase(n_clicks, dct_df, fig, marker, starttime, endtime):
         # patch new data into figure
         patched_figure = fig_patch_updated_marker(fig, marker, dct_df)
     return n_clicks, patched_figure, dct_df
-
-
 @app.callback(Output('cl_markerdraw', 'children'),
               Output("cl_fig_timeseries", 'figure', allow_duplicate=True),
               Output('cl_store_df', 'data', allow_duplicate=True),
@@ -252,9 +244,10 @@ def save(n_clicks, dct_df, filename, col_always, col_markers, col_order):
     Output("cl_hlp_columnorder", "children"),
     Input('cl_upload01', 'contents'),
     State('cl_upload01', 'filename'),
+    State('cl_audiofolder','value'),
     prevent_initial_call=True
 )
-def load_data_into_layout(strcontent, f):
+def load_data_into_layout(strcontent, f, audiofolder):
     # initialize empty dictionaries,  lists and dummies
     dfdict, dfsummarydict, fig = dict(), dict(), dict()
     lst_flds_a, lst_flds_m_used, lstsound, kolomvolgorde = [], [], [], []
@@ -262,17 +255,20 @@ def load_data_into_layout(strcontent, f):
     begintime = "1976-07-02 23:30:00"  # my dummy birthday
     spectralinfo = "there is no spectral info"
     # check if file is dropped from the datafolder, if not from datafolder: stop
-    invalid, status = file_is_from_invalid_folder(f, folder_data)
-    if not invalid:  # check sonometer-type
-        # decode inputstring of dropped file
-        content_type, content_string = strcontent.split(',')  # split content string from dcc
-        decoded = base64.b64decode(content_string)
-        # check sonometer type, based on decoded string
-        invalid, status = categorize_inputdata(decoded)
+   # invalid, status = file_is_from_invalid_folder(f, folder_data)
+   # if not invalid:  # check sonometer-type
+    # decode inputstring of dropped file
+    content_type, content_string = strcontent.split(',')  # split content string from dcc
+    decoded = base64.b64decode(content_string)
+    # check sonometer type, based on decoded string
+    #invalid, status = categorize_inputdata(decoded)
+    properties = get_fileproperties(decoded, f)
+    invalid = properties['invalid']
+    status = properties['slmtype']
     # data preparation only if sonometer-type is known
     if not invalid:
         lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo = \
-            data_prep(slmtype=status, decoded=decoded, filename=f)
+            data_prep(slmtype=status, decoded=decoded, filename=f, dir_audio=audiofolder)
         # store column-order for saving (dictionaries don't preserve this order)
         kolomvolgorde = df.columns.to_list()
         # put the dataframe in dcc store as a dict for later use
@@ -330,4 +326,4 @@ app.clientside_callback(
 )
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run(debug=True)

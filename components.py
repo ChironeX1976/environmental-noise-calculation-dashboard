@@ -1,5 +1,6 @@
 import dash_bootstrap_components as dbc
 from dash import dcc, html, dash_table
+from definitions import get_std_audio_path
 """ 
 The components of the dash web-page are created here, web page looks like this:
 --------------------------------------
@@ -31,12 +32,16 @@ def c_tab_time():
     dcc.Interval(id="cl_interval", interval=1000),  # every 1000 milliseconds a refresh
     dbc.Row(
         [
-        html.Div(dcc.Dropdown(id='cl_drop_audiotimeandfile', placeholder="Select audiofile",
+            html.Div(dcc.Input(id="cl_audiofolder", type="text",
+                      value=str(get_std_audio_path()),
+                      className="custom-audiopath")),
+            html.Div(dcc.Dropdown(id='cl_drop_audiotimeandfile', placeholder="Select audiofile",
                               #options=lstsound,
                               #value=lstsound[0]['value'],
                               clearable=False,
                     style={'width':'100%','height': '33px', 'display': 'inline-block'}),
                  style={"width": "15%", "height":"33px", 'display': 'inline-block'}),
+
         html.Audio(id='cl_audioplayer', src='',
             controls=True, autoPlay=False, style={'display': 'inline-block', "width": "85%", "height":"33px"})
         ],

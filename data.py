@@ -6,6 +6,79 @@ from definitions import standard_column_names, folder_and_file_paths, standardiz
 import io
 import base64
 import ntpath
+import chardet
+import csv
+def get_fileproperties(decoded, filename):
+    keys = ['filename', 'encoding', 'invalid', 'slmtype', 'delim', 'skiprows']
+    # read the encoding
+    enc = get_encoding(decoded[:1024])
+    # make a small sample of the data
+    sample = make_datasample(decoded,enc)
+    # get type of sound level meter (slm)
+    invalid, slmtype = get_slmtype(sample)
+    # detect the delimiters in the sample
+    delim = get_delimiter(sample)
+    # get rows to skip in the dataset
+    skiprows=get_rowstoskip(slmtype)
+    values =[filename, enc, invalid, slmtype, delim, skiprows]
+    properties=dict(zip(keys,values))
+    return properties
+def make_datasample(decoded, enc):
+    # try to make a sample string
+    try:
+        sample_lines = decoded.decode(enc).splitlines()
+        sample = '\n'.join(sample_lines[:30])  # or however many lines you want
+    except UnicodeDecodeError:
+        sample = decoded.decode('utf-8', errors='ignore')
+    return sample
+def get_encoding(bytessample):
+    result = chardet.detect(bytessample)
+    enc = result['encoding'] or 'utf-8'
+    print('encoding:', enc)
+    return enc
+def get_delimiter(sample_text):
+    try:
+        sniffer = csv.Sniffer()
+        dialect = sniffer.sniff(sample_text)
+        delim = dialect.delimiter
+        msg = "TAB" if delim == '\t' else delim
+        print('delimiter:', msg)
+        return delim
+    except Exception as e:
+        print(f"[DEBUG] Fout bij detecteren delimiter: {e}")
+        return ',', 'fallback (default ,)'
+def get_slmtype(sample_text):
+    """
+    Evaluates the first line of the sample text of a dataset.
+    Returns:
+        invalid:default = True
+        skiprows (int): 1 if 'fusion' is in the first line,
+                        0 if 'Project Name' is in the first line,
+                        defaults to 0 otherwise.
+        slmtype =  string with name of source
+    """
+    invalid = True
+    first_line = sample_text.splitlines()[0].lower()
+    if 'isodatetime' in first_line:
+        invalid = False
+        slmtype = 'standard pcm file'
+    elif 'project name' in first_line:
+        invalid = True
+        if 'laeq' in first_line:
+            slmtype = 'benk_bb -> put in standardization tool'
+        if 'lzeq 500hz' in first_line:
+            slmtype = 'benk_spectra -> put in standardization tool'
+    elif 'fusion' in first_line:
+        slmtype = 'fusion -> put in standardization tool'
+    else:
+        slmtype = "unknown slm file"
+    return invalid, slmtype
+def get_rowstoskip(slmtype):
+    if slmtype == 'fusion':
+        skiprows = 1
+    else:
+        skiprows = 0
+    return skiprows
 def categorize_inputdata(decoded):
     """Categorise type of sound level meter (slm),
        by reading the first 5 lines of the raw dataset (string),
@@ -35,11 +108,11 @@ def categorize_inputdata(decoded):
         slmtype="unknown file"
         invalid = True
     return invalid, slmtype
-def data_prep(slmtype:str, decoded:str, filename:str):
-    if slmtype == "Bruel and Kjaer-2250":
-        lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo = b_en_k_dataprep(decoded, filename)
-    elif slmtype == "standardized":
-        lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo = standard_dataprep(decoded, filename)
+def data_prep(slmtype:str, decoded:str, filename:str, dir_audio:str):
+    #if slmtype == "Bruel and Kjaer-2250":
+    #    lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo = b_en_k_dataprep(decoded, filename)
+    if slmtype == "standard pcm file":
+        lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo = standard_dataprep(decoded, filename, dir_audio)
     else:
         print(slmtype, ", not programmed yet")
     return lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo
@@ -103,7 +176,7 @@ def b_en_k_dataprep(decodeddata:str,f:str):
     print('selecting datafields: ', lst_interesting)
     return lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo
 
-def standard_dataprep(decodeddata:str,f:str):
+def standard_dataprep(decodeddata:str,f:str, dir_audio):
     """Read STANDARD TXT file and prepare data. This STANDARD is created by another session of this program and saved
     :param
         strdecoded: a raw string from a dash core component Upload containing the data of a measurement
@@ -118,31 +191,52 @@ def standard_dataprep(decodeddata:str,f:str):
     # get standard columnames and filepaths
     spectralinfo = "no spectral info in file"
     str_c_laeq1s, str_c_time, lst_c_percentiles, lst_c_summary, str_c_soundpath, str_c_exclude = standard_column_names()
-    dir_root, dir_data, dir_audio, f = folder_and_file_paths(f)
+    #dir_root, dir_data, dir_audio, f = folder_and_file_paths(f)
     # read into pandas dataframe
     df = pd.read_csv(io.StringIO(decodeddata.decode('utf-8')), delimiter="\t", skiprows=0, engine="python", decimal=',')
     # standardize a few essential column-names of the dataframe
-    standardize(df, str_c_soundpath, str_c_exclude, str_c_time, str_c_laeq1s)
+    #standardize(df, str_c_soundpath, str_c_exclude, str_c_time, str_c_laeq1s)
     # get interesting fields
     lst_flds_a = col_lst_always(str_c_time, str_c_laeq1s)
-    lst_flds_st = b_en_k_fldslst_stats()
+    # get other interesting columns that are not mandatory
+    # statistics columns
+    lst_standardstats = ["laf1", "laf5", "laf10", "laf50", "laf90", "laf95", "laf99"]
+    lst_flds_st = []  # no stat fields, empty list
+    all_present = all(col in df.columns for col in lst_standardstats)
+    if all_present: lst_flds_st = lst_standardstats  # statfields in a list
+    # min max  columns
+    lst_flds_minmax = []  # no minmax fields
+    lst_standardsminmax = ['lafmin','lafmax']
+    all_present = all(col in df.columns for col in lst_standardsminmax)
+    if all_present: lst_flds_minmax = lst_standardsminmax  # minmax
     lst_flds_m_used = std_fldslst_marker_all(df, str_c_soundpath)
     # create time object
     df[str_c_time] = pd.to_datetime(df[str_c_time], format='%Y-%m-%d %H:%M:%S')
     begintime = df[str_c_time].min()
     # replace 0 by np.nan
-    df.replace(0, np.nan, inplace=True)
+    #df.replace(0, np.nan, inplace=True)
     # Make a small list and dataframe of the paths with soundfiles and update the main dataframe
     lstsound, dfsoundpaths = std_soundpaths(dir_audio, df, lst_flds_a[0], str_c_soundpath)
     # selection  interesting fields
-    lst_interesting = lst_flds_a + lst_flds_m_used + [str_c_soundpath] + lst_flds_st
+
     # check if spectrum columns are in dataframe, if there are more interesting fields
-    if set(lst_standard_spectrumcolumn_names()).issubset(set(df.columns)):
-        lst_interesting = lst_interesting + lst_standard_spectrumcolumn_names()
-        df = df[lst_interesting]
+    lst_standardspecs = ['lzeq25hz', 'lzeq31.5hz', 'lzeq40hz', 'lzeq50hz', 'lzeq63hz', 'lzeq80hz', 'lzeq100hz',
+                 'lzeq125hz', 'lzeq160hz', 'lzeq200hz', 'lzeq250hz', 'lzeq315hz', 'lzeq400hz', 'lzeq500hz',
+                 'lzeq630hz', 'lzeq800hz', 'lzeq1khz', 'lzeq1.25khz', 'lzeq1.6khz', 'lzeq2khz', 'lzeq2.5khz',
+                 'lzeq3.15khz', 'lzeq4khz', 'lzeq5khz', 'lzeq6.3khz', 'lzeq8khz', 'lzeq10khz', 'lzeq12.5khz',
+                 'lzeq16khz', 'lzeq20khz']
+    lst_flds_specs = []
+    all_present = all(col in df.columns for col in lst_standardspecs)
+    if all_present:
+        lst_flds_specs = lst_standardspecs  # statfields in a list
         spectralinfo = "Select marker, parameter and plot"
-    else:
-        df = df[lst_interesting]
+    lst_interesting = lst_flds_a + lst_flds_m_used + [str_c_soundpath] + lst_flds_st + lst_flds_minmax + lst_flds_specs
+    # if set(lst_standard_spectrumcolumn_names()).issubset(set(df.columns)):
+    #     lst_interesting = lst_interesting + lst_standard_spectrumcolumn_names()
+    #     df = df[lst_interesting]
+    #     spectralinfo = "Select marker, parameter and plot"
+    # else:
+    #     df = df[lst_interesting]
     print('selecting datafields: ', lst_interesting)
     return lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo
 
@@ -154,8 +248,8 @@ def std_fldslst_marker_all(df, str_c_soundpath):
     """
     lst = []
     for c in df.columns.tolist():
-        if c is not str_c_soundpath:
-            if df[c].isin([np.nan, 1]).all():
+        #if c is not str_c_soundpath:
+        if df[c].isin([np.nan, 1]).all():
                 lst.append(c)
     return lst
 
@@ -532,7 +626,7 @@ def lst_standard_spectrumcolumn_names():
     """Even when the same brand of sound level meter is used, the columnnames can differ.
     From the list of spellings, list number 6 is chosen as standard:
     no spaces, no capitals, no special charachters, so no troubles"""
-    choice = 6
+    choice = 3
     lst = lst_spectra_spellings()[choice]
     return lst
 

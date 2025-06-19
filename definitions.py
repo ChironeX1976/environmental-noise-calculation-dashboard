@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+import platform
 def folder_and_file_paths(f):
     """returns standard filepaths based on a selected file
     :param
@@ -16,7 +18,7 @@ def project_folder_and_path():
 def standard_column_names():
     """returns standard column names"""
     str_c_laeq1s ="laeq1s" #column name with laeq1s
-    str_c_time = "time" # column name with time stamp
+    str_c_time = "isodatetime" # column name with time stamp
     str_c_soundpath = "soundpath"
     str_c_exclude = "exclude"
     lst_c_percentiles = [["LA1", "LA5", "LA10", "LA50", "LA90", "LA95", "LA99"],[1, 5, 10, 50, 90, 95, 99]]
@@ -61,3 +63,10 @@ def file_is_from_invalid_folder(f, dir_data):
         invalid = False
         msg=""
     return invalid, msg
+def get_std_audio_path():
+    system = platform.system()
+    if system == "Windows":
+        return Path("C:/py/audio/01db")
+    else:
+        # Op Linux/macOS wordt de map in de thuismap gezet
+        return Path.home() / "audio/"
