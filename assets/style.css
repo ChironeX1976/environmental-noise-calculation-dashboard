@@ -1,0 +1,27 @@
+* {
+    font-family: 'Verdana', sans-serif;
+}
+.custom-upload {
+    width: 60%;
+    max-width: 500px;
+    border: 2px solid black;
+    background-color: white;
+    padding: 10px;
+    text-align: left;
+}
+.custom-saveaspath {
+    border: 2px solid black;
+    background-color: white;
+    text-align: left;
+}
+.custom-audiopath {
+    color: grey;
+    width: 20%;
+    max-width: 500px;
+    border: 2px solid grey;
+    background-color: white;
+    padding: 10px;
+    text-align: left;
+    height:33px
+}
+.custom-audiotext{display: inline-block, width: 85%, height:33px}
