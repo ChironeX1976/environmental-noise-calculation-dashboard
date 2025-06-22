@@ -9,8 +9,6 @@ def lst_seriekleuren():
     # lst_kleuren = ['blue', 'orange', 'red', 'pink', 'green', 'purple']
     lst_kleuren = ['black', 'red', 'brown', 'magenta', 'black', 'green', 'purple']
     return lst_kleuren
-
-
 def lst_markerkleuren():
     lst_kleuren = ['red', 'blue', 'yellow', 'pink', 'purple', 'brown', 'salmon']
     return lst_kleuren
@@ -201,8 +199,3 @@ def create_fig_spectrum(df, str_grafiektitel):
                       yaxis=dict(title='dBZ', zeroline=False, showgrid=True, gridwidth=1, gridcolor='grey'))
     fig.update_layout(title=str_grafiektitel, title_x=0.5, plot_bgcolor="white")
     return fig
-# def create_fig_spect():
-#     fig_spect = go
-#     return fig_spect
-
-#print(dct_timeannotationlayout(datetime.datetime(2021, 11, 16, 9, 0, 0)))

@@ -1,4 +1,4 @@
-# # VERSION 03 ###
+# # VERSION 04 ###
 # #################
 import base64
 import datetime
@@ -145,8 +145,6 @@ def marker_renaming(dct_df, dct_markers, oldmarkername, newmarkername, fig, n_cl
         # patch new data into figure
         patched_figure = fig_patch_renamed_marker(fig, newmarkername, oldmarkername)
     return True, dct_df, dct_markers, patched_figure
-
-
 @app.callback(Output('cl_div_addandrenamesection', 'hidden', allow_duplicate=True),
               Output('cl_store_df', 'data', allow_duplicate=True),
               Output("cl_store_c_markers", 'data', allow_duplicate=True),
@@ -167,16 +165,12 @@ def marker_adding(dct_df, dct_markers, newmarkername, fig, n_clicks):
         # patch new data into figure
         patched_figure = fig_patch_added_marker(fig, newmarkername)
     return True, dct_df, dct_markers, patched_figure
-
-
 @app.callback(Output('cl_drp_markers_spec', 'options'),
               Output('cl_markers_used', 'options'),
               Input('cl_store_c_markers', 'data'),
               prevent_intial_call=True)
 def refresh(dct_markers):
     return dct_markers, dct_markers
-
-
 # --------------------------------------------------------------------------------------
 # ------------                 STATISTICS refresh                           ------------
 # --------------------------------------------------------------------------------------
@@ -190,8 +184,6 @@ def refreshstatistics(n_clicks, dct_summary, dct_markers):
     # update data of the summary statistics dataframe
     dct_dfsummary = create_standarddf_of_markers_summary(dct_summary, dct_markers)
     return n_clicks, dct_dfsummary
-
-
 # --------------------------------------------------------------------------------------
 # ------------                 PLOT SPECTRUM                                ------------
 # --------------------------------------------------------------------------------------
@@ -202,18 +194,10 @@ def refreshstatistics(n_clicks, dct_summary, dct_markers):
               State("cl_store_df", 'data'),
               prevent_initial_call=True)
 def plotspectrum(n_clicks, marker, parameter, dct_df):
-    # dataprep
-    # if parameter == 'Leq':
     df = data_spec_leq_or_ln(dct_df, marker, parameter)
     titel = marker + ' ' + parameter
-    # else:
-    #     df = data_spec_ln(dct_df, marker)
-    #     titel = marker + ' ' + parameter
-    # plot
     fig = create_fig_spectrum(df, titel)
     return fig
-
-
 # --------------------------------------------------------------------------------------
 # ------------         SAVE DATA after editing                              ------------
 # --------------------------------------------------------------------------------------
@@ -228,8 +212,6 @@ def plotspectrum(n_clicks, marker, parameter, dct_df):
 def save(n_clicks, dct_df, filename, col_always, col_markers, col_order):
     saveas_standard_csv_in_data_dir(dct_df, folder_data, filename, col_always, col_markers, col_order)
     return n_clicks
-
-
 # --------------------------------------------------------------------------------------
 # ------------         INITIAL DATA LOAD into dash app                      ------------
 # --------------------------------------------------------------------------------------
@@ -257,14 +239,9 @@ def load_data_into_layout(strcontent, f, audiofolder):
     figurestatus = "figure not loaded yet"
     begintime = "1976-07-02 23:30:00"  # my dummy birthday
     spectralinfo = "there is no spectral info"
-    # check if file is dropped from the datafolder, if not from datafolder: stop
-   # invalid, status = file_is_from_invalid_folder(f, folder_data)
-   # if not invalid:  # check sonometer-type
     # decode inputstring of dropped file
     content_type, content_string = strcontent.split(',')  # split content string from dcc
     decoded = base64.b64decode(content_string)
-    # check sonometer type, based on decoded string
-    #invalid, status = categorize_inputdata(decoded)
     properties = get_fileproperties(decoded, f)
     invalid = properties['invalid']
     status = properties['slmtype']
@@ -282,8 +259,6 @@ def load_data_into_layout(strcontent, f, audiofolder):
     return status, f, figurestatus, begintime, \
            dfdict, lst_flds_a, lst_flds_m_used, \
            fig, lstsound, spectralinfo, kolomvolgorde
-
-
 # ######################################################################################
 # #########          CALLBACK client-side (audio annotation on figure)         #########
 # ######################################################################################
