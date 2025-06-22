@@ -8,9 +8,11 @@ from dash import dash, html, Patch
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 
-from data import get_fileproperties, data_prep, marker_apply, create_standarddf_of_markers_summary, \
-    saveas_standard_csv_in_data_dir, marker_rename, marker_add, dataprep_laeq, dataprep_la95
-from definitions import file_is_from_invalid_folder, project_folder_and_path
+from data import get_fileproperties, data_prep, marker_apply, \
+    saveas_standard_csv_in_data_dir, marker_rename, marker_add
+from data_spec import data_spec_leq_or_ln
+from data_stats import create_standarddf_of_markers_summary
+from definitions import project_folder_and_path
 from audio import update_audio_source
 from plot import create_fig_time_vs_db, dct_timeannotationlayout, fig_add_annotation, \
     fig_patch_updated_marker, domain_get_start_end, fig_patch_renamed_marker, fig_patch_added_marker, \
@@ -35,9 +37,10 @@ app.layout = c_total_layout()
 @app.callback(Output('cl_audiofile', 'children'), Output('cl_begintime', 'children'), Output('cl_audioplayer', 'src'),
               Input('cl_drop_audiotimeandfile', 'value'),
               State('cl_drop_audiotimeandfile', 'options'),
+              State('cl_audiofolder','value'),
               prevent_initial_call=True)
-def update_audiosource(dropdownval, dropdownoptions):
-    dropdownval, o_datetime, s = update_audio_source(dropdownval, dropdownoptions)
+def update_audiosource(dropdownval, dropdownoptions, audiofolder):
+    dropdownval, o_datetime, s = update_audio_source(dropdownval, dropdownoptions, audiofolder)
     return dropdownval, o_datetime, s  # send the audio string to cl_audioplayer
 
 
@@ -200,12 +203,12 @@ def refreshstatistics(n_clicks, dct_summary, dct_markers):
               prevent_initial_call=True)
 def plotspectrum(n_clicks, marker, parameter, dct_df):
     # dataprep
-    if parameter == 'Leq':
-        df = dataprep_laeq(dct_df, marker)
-        titel = marker + ' ' + parameter
-    else:
-        df = dataprep_la95(dct_df, marker)
-        titel = marker + ' ' + parameter
+    # if parameter == 'Leq':
+    df = data_spec_leq_or_ln(dct_df, marker, parameter)
+    titel = marker + ' ' + parameter
+    # else:
+    #     df = data_spec_ln(dct_df, marker)
+    #     titel = marker + ' ' + parameter
     # plot
     fig = create_fig_spectrum(df, titel)
     return fig
@@ -217,7 +220,7 @@ def plotspectrum(n_clicks, marker, parameter, dct_df):
 @app.callback(Output("cl_hlp_save", 'children'),
               Input('cl_btn_save', 'n_clicks'),
               State("cl_store_df", 'data'),
-              State('cl_hlp_filename', 'children'),
+              State('cl_savefileas', 'value'),
               State('cl_store_c_always', 'data'),
               State('cl_store_c_markers', 'data'),
               State('cl_hlp_columnorder', 'children'),

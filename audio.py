@@ -2,7 +2,7 @@ import datetime
 import base64
 import os
 
-def update_audio_source(value, options):
+def update_audio_source(value, options, audiofolder):
     """update the data in the audioplayer
         :param
             value: value selected in a dropdownlist, this is a path of the audiofile
@@ -18,6 +18,7 @@ def update_audio_source(value, options):
     # get the first and only item in the list and transform to a uniform datetime
     o_datetime = datetime.datetime.strptime(lstdatetime[0], '%Y-%m-%d %H:%M:%S')  # datetime-string to datetime-object
     # check if the value (path) exists and load in to a string
+    value = os.path.join(audiofolder, value)
     if os.path.isfile(value):
         # load the audio data
         data_sound = base64.b64encode(open(value, 'rb').read())

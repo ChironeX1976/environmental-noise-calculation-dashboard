@@ -1,6 +1,6 @@
 import dash_bootstrap_components as dbc
 from dash import dcc, html, dash_table
-from definitions import get_std_audio_path
+from definitions import get_std_audio_path, get_std_file_path
 """ 
 The components of the dash web-page are created here, web page looks like this:
 --------------------------------------
@@ -22,7 +22,8 @@ def c_lefties():
                              children=html.Div(['Drag and Drop or ', html.A('Select Files')]),
                              style={'borderStyle': 'solid', 'borderColor': 'black', 'backgroundColor': 'white'}),
                   html.Div(id='cl_filestatus', children='...'),
-                  dbc.Button(id="cl_btn_save", children="save", color="success", size="m")],
+                  dbc.Button(id="cl_btn_save", children="save", color="success", size="m"),
+                  dcc.Input(id="cl_savefileas", value = str(get_std_file_path()))],
                    className="bg-primary h-100 border border-5")
     return c
 def c_tab_time():
@@ -86,7 +87,7 @@ def c_tab_time():
 def c_tab_stats():
     c = html.Div(dbc.Row([html.Div(
         [
-        html.Div("Statistical parameters of markers, refresh to calculate"),
+        html.Div("Statistical parameters of markers, based on laeq1s (not laf) refresh to calculate"),
         dbc.Button(id="cl_btnstatrefresh", children="refresh", color="primary", size="sm",
                        style={"verticalAlign": "top"}),
         dash_table.DataTable(id ="cl_tbl_markersummary",
@@ -163,7 +164,7 @@ def c_divhelpfields():
         html.Div(dcc.Store(id='cl_store_df', data=dict())),
         html.Div(dcc.Store(id='cl_store_c_always', data=dict())),
         html.Div(dcc.Store(id='cl_store_c_markers', data=dict()))
-    ], hidden=True)
+    ], hidden=False)
     return c
 def c_total_layout():
     c = dbc.Container([

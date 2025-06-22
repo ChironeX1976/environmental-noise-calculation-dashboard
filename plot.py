@@ -4,7 +4,7 @@ from dash import Patch
 import datetime
 import pandas as pd
 import numpy as np
-
+from definitions import lst_standard_spectrumcolumn_labels
 def lst_seriekleuren():
     # lst_kleuren = ['blue', 'orange', 'red', 'pink', 'green', 'purple']
     lst_kleuren = ['black', 'red', 'brown', 'magenta', 'black', 'green', 'purple']
@@ -190,13 +190,14 @@ def create_fig_spectrum(df, str_grafiektitel):
 
     fig = go.Figure()
     kleuren = ['grey', ] * 31  # 30 keer dezelfde kleur
-    kleuren[30] = 'black'  # alleen de laatste is magenta
+    kleuren[30] = 'black'  # alleen de laatste is zwart
     fig.add_trace(go.Bar(x=df['hz'], y=df[df.columns[1]]))
-
+    xaslabels = lst_standard_spectrumcolumn_labels()
+    xaslabels.append('tot_A')
     fig.update_traces(marker_color=kleuren)
 
     fig.update_layout(title=str_grafiektitel,
-                      xaxis=dict(title='herz', zeroline=False, showgrid=False, tickangle=270),
+                      xaxis=dict(title='herz', zeroline=False, showgrid=False, tickangle=270, tickvals= df['hz'], ticktext= xaslabels),
                       yaxis=dict(title='dBZ', zeroline=False, showgrid=True, gridwidth=1, gridcolor='grey'))
     fig.update_layout(title=str_grafiektitel, title_x=0.5, plot_bgcolor="white")
     return fig
