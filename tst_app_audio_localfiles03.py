@@ -5,17 +5,21 @@ import json
 app = dash.Dash(__name__)
 
 app.layout = html.Div([
-    dcc.Store(id='allowed-files-store', data=''),
+    dcc.Store(id='cl_allowed_audiofiles_store', data=''),
     html.Button(id='cl_btn_loaddata_into_dccstore', children='Load Data', n_clicks=0),
-    html.Button(id='select-folder', children="Kies map", n_clicks=0),
-    html.Select(id="file-list", disabled=True),
-    html.Audio(id="audio-player", controls=True),
-    html.P(id="error-message", style={"color": "red"}),
-    html.Div(id="js-trigger", **{"data-files": ""})  # custom data attribuut
+    html.Button(id='cl_btn_select_audiofolder', children="Kies map", n_clicks=0),
+    html.Select(id="cl_drp_audiofilelist", disabled=True),
+    html.Audio(id="cl_audioplayer", controls=True),
+    html.P(id="cl_audio_errormessage", style={"color": "red"}),
+    html.Div(id="js_trigger_audiofiles_are_in_store", **{"data-files": ""}),
+    html.Div(id="cl_begintime", children="here i want the timestamp of the selected value"),
+    # dcc.Store(id="cl_begintime", data=''),
+    html.Div(id="cl_ann", children='no audiofile loaded')
 ])
 
+
 @app.callback(
-    Output('allowed-files-store', 'data'),
+    Output('cl_allowed_audiofiles_store', 'data'),
     Input('cl_btn_loaddata_into_dccstore', 'n_clicks'),
     prevent_initial_call=True
 )
@@ -28,11 +32,12 @@ def update_output(n_clicks):
     return mijn_bestanden
 
 @app.callback(
-    Output("js-trigger", "data-files"),
-    Input("allowed-files-store", "data")
+    Output("js_trigger_audiofiles_are_in_store", "data-files"),
+    Input("cl_allowed_audiofiles_store", "data")
 )
-def inject_data(data):
-    return json.dumps(data)
+def inject_audiodata(lst_audiofiles):
+    print ("injected", lst_audiofiles)
+    return json.dumps(lst_audiofiles)
 
 if __name__ == "__main__":
     app.run(debug=True)

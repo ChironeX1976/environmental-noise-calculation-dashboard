@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from definitions import standard_column_names, standardfile_prefix, lst_standard_spectrumcolumn_names, \
     lst_standard_statscolumn_names
+from dash import dcc
 import io
 import chardet
 import csv
@@ -77,15 +78,15 @@ def get_rowstoskip(slmtype):
     else:
         skiprows = 0
     return skiprows
-def data_prep(slmtype:str, decoded:str, filename:str, dir_audio:str):
+def data_prep(slmtype:str, decoded:str, filename:str): #, dir_audio:str):
     #if slmtype == "Bruel and Kjaer-2250":
     #    lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo = b_en_k_dataprep(decoded, filename)
     if slmtype == "standard pcm file":
-        lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo = standard_dataprep(decoded, filename, dir_audio)
+        lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo = standard_dataprep(decoded, filename) #, dir_audio)
     else:
         print(slmtype, ", not programmed yet")
     return lst_flds_a, lst_flds_st, lst_flds_m_used, begintime, df, lstsound, spectralinfo
-def standard_dataprep(decodeddata:str,f:str, dir_audio):
+def standard_dataprep(decodeddata:str,f:str): #, dir_audio):
     """Read STANDARD TXT file and prepare data. This STANDARD is created by another session of this program and saved
     :param
         strdecoded: a raw string from a dash core component Upload containing the data of a measurement
@@ -125,7 +126,7 @@ def standard_dataprep(decodeddata:str,f:str, dir_audio):
     # replace 0 by np.nan
     #df.replace(0, np.nan, inplace=True)
     # Make a small list and dataframe of the paths with soundfiles and update the main dataframe
-    lstsound, dfsoundpaths = std_soundpaths(dir_audio, df, lst_flds_a[0], str_c_soundpath)
+    lstsound, dfsoundpaths = std_soundpaths(df, lst_flds_a[0], str_c_soundpath)
     # selection  interesting fields
 
     # check if spectrum columns are in dataframe, if there are more interesting fields
@@ -170,7 +171,7 @@ def lst_to_dict(lst):
     res_dct = {lst[i]: lst[i] for i in range(0, len(lst))}
     return res_dct
 
-def std_soundpaths(dir_audio, df, fld_time:str,fld_soundpath: str):
+def std_soundpaths(df, fld_time:str,fld_soundpath: str):
     """make a list of time(string) and corresponding filepaths(string) of the sound files.
     based on the file number and standard annotation folders and separators
     :param
@@ -295,8 +296,9 @@ def marker_add(dct_df, newname, dct_markers):
         # turn df into dict again
         dct_df = df.to_dict("records")
     return valid, dct_df, dct_markers
-def saveas_standard_csv_in_data_dir(dct_df,dir_data, filename, columnsalways, columnsmarkers, kolomvolgorde):
+def saveas_standard_csv_in_data_dir(dct_df, columnsalways, columnsmarkers, kolomvolgorde):
     prefix = standardfile_prefix() # std_
+    filename = prefix + "filename.txt"
     str_c_laeq1s, str_c_time, lst_c_percentiles, lst_c_summary, str_c_soundpath,str_c_exclude = standard_column_names()
     df = pd.DataFrame(dct_df)
     df[str_c_time] = pd.to_datetime(df[str_c_time], format='ISO8601')
@@ -306,8 +308,13 @@ def saveas_standard_csv_in_data_dir(dct_df,dir_data, filename, columnsalways, co
         if k not in lst:
             lst.append(k)
     df = df[lst]
-    df.to_csv(filename, sep="\t", index=False)
-    return
+    # Zet DataFrame om naar CSV in geheugen
+    buffer = io.StringIO()
+    df.to_csv(buffer, sep="\t", index=False)
+    buffer.seek(0)
+    datastring = buffer.getvalue()
+    # Start download
+    return datastring, filename
 
 def logmean_of_column(df_in, str_col):
     """calculate logarithmic mean of a column in a dataframe

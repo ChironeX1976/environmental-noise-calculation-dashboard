@@ -1,0 +1,188 @@
+import dash_bootstrap_components as dbc
+from dash import dcc, html, dash_table
+from definitions import get_std_audio_path, get_std_file_path
+""" 
+The components of the dash web-page are created here, web page looks like this:
+--------------------------------------
+|lefties| tabstogether                |
+|       |    time, stats, spect       |
+|       |                             |
+|       |                             |
+|       |                             |
+--------------------------------------|
+| helpfields                          |
+--------------------------------------|
+"""
+
+def c_lefties():
+    """make html-components left on the webpage"""
+    c = html.Div([html.Img(src="assets/logo.png", width=180),
+                  html.Div([
+                      html.Div(id='cl_audio_loudness_label',
+                               children='Audio loudness'),
+                      dcc.Dropdown(id="cl_audio_loudness", options=[1, 2, 5, 10, 20], clearable=False, value=2,
+                                   style={'width': 'fit-content'}),
+                      html.P(id="cl_loudness_locked_msg", style={"color": "gray"})]),
+                  html.Div('Load data:'),
+                  dcc.Upload(
+                      id='cl_upload01',
+                      children=html.Button('Upload'),
+                      style={'width': '100%'}
+                  ),
+                  html.Div(id='cl_filestatus', children='...'),
+                  html.Div([
+                      html.Button("Download", id="cl_btn_download", n_clicks=0),
+                      dcc.Download(id="cl_download_component")]),
+                  ],
+                   className="bg-primary h-100 border border-5")
+    return c
+def c_tab_time():
+    """make html - components related to the time series of sound pressure levels"""
+    c = html.Div([
+    # dbc.Row([table], className="border border-5 bg-secondary"),
+    dcc.Interval(id="cl_interval", interval=1000),  # every 1000 milliseconds a refresh
+    dbc.Row(
+        [
+        dbc.Col(html.Button(id='cl_btn_select_audiofolder', children="Choose folder with audio-files", n_clicks=0), width=4),
+        dbc.Col(
+            html.Div([
+                dcc.Dropdown(id="cl_drp_audiofilelist", placeholder="Select audio-file", style={'width': '100%', 'height': '30px', 'display': 'inline-block'})],
+                style = {"width": "100%", "height": "30px", 'display': 'inline-block'}), width=8),
+        html.P(id="cl_audio_errormessage", style={"color": "red"}),
+        # html.Div(dcc.Dropdown(id='cl_drp_audiofilelist', options=[],  # wordt dynamisch gevuld via JS
+        #                  placeholder='Selecteer een audiobestand')),
+        html.Audio(id='cl_audioplayer', src='',
+            controls=True, autoPlay=False, style={'display': 'inline-block', "width": "100%", "height":"30px"})
+        ],
+        className="border border-5 bg-secondary"),
+    dbc.Row(
+        [
+            html.Div("Use box-select-tool from the figure to draw or erase marker"),
+            dbc.Button(id="cl_marker_btndraw", children="draw", color="primary", size="sm",
+                       style={"verticalAlign": "top",'display': 'inline-block', 'height': '33px', 'width':'auto'}),
+            dbc.Button(id="cl_marker_btnerase", children="erase", color="danger", size="sm",
+                       style={"verticalAlign": "top",'display': 'inline-block', 'height': '33px','width':'auto'}),
+            html.Div(dcc.Dropdown(id='cl_markers_used', placeholder = "Select marker",
+                                  # options=lst_m_us,
+                                  # value=lst_m_us[0],
+                                  clearable=False,
+                                  style={'width': '100%', 'height': '33px', 'display': 'inline-block'}),
+                 style={"width": "15%", "height":"33px",'display': 'inline-block'}),
+           dbc.Button(id="cl_marker_btnedit", children="edit", color="warning", size="sm",
+                       style={"verticalAlign": "top", 'display': 'inline-block', 'height': '33px', 'width': 'auto'}),
+            html.Div(id="cl_div_addandrenamesection",
+                     children=
+            [
+
+                dcc.Input(id="cl_inp_marker_add_or_rename", placeholder="enter marker name",
+                      style={"verticalAlign": "top", 'display': 'inline-block', 'height': '33px'}),
+                dbc.Button(id="cl_marker_btnrename", children="rename", color="warning", size="sm",
+                           style={"verticalAlign": "top", 'display': 'inline-block', 'height': '33px'}),
+                dbc.Button(id="cl_marker_btnadd", children="add", color="warning", size="sm",
+                           style={"verticalAlign": "top", 'display': 'inline-block', 'height': '33px'}),
+                dbc.Button(id="cl_marker_btncancel", children="cancel", color="info", size="sm",
+                           style={"verticalAlign": "top", 'display': 'inline-block', 'height': '33px'})
+            ],
+                     style={"verticalAlign": "top", 'display': 'inline-block', 'height': '33px', 'width': '50%'},
+                hidden = True),
+        ],
+        className="border border-5 bg-secondary"),
+
+    dbc.Row([dcc.Graph(id='cl_fig_timeseries', config={"modeBarButtonsToRemove": ['lasso2d']})],
+        className="border border-5 bg-secondary"),
+    ])
+    return c
+def c_tab_stats():
+    c = html.Div(dbc.Row([html.Div(
+        [
+        html.Div("Statistical parameters of markers, based on laeq1s (not laf) refresh to calculate"),
+        dbc.Button(id="cl_btnstatrefresh", children="refresh", color="primary", size="sm",
+                       style={"verticalAlign": "top"}),
+        dash_table.DataTable(id ="cl_tbl_markersummary",
+            #data=dfsummary.to_dict('records'),
+            #columns=[{'id': c, 'name': c} for c in dfsummary.columns],
+            #fixed_rows={'headers': True},
+            #style_table={'height': 500},  # defaults to 500
+            # style_cell = {'minWidth': 10, 'maxWidth': 20, 'width': 10}
+            ),
+        ])], className="border border-5 bg-secondary vh-100"))
+    return c
+def c_tab_spect():
+    c = html.Div([
+        dbc.Row([html.Div(id='cl_spectstatus',
+                          children="If there is spectral information: select marker and acoustic parameter..."),
+                 html.Div(children=
+                 [html.Div(dcc.Dropdown(id='cl_drp_markers_spec', placeholder="Select marker",
+                              # options=lst_m_us,
+                              # value=lst_m_us[0],
+                              clearable=False,
+                              style={'width': '100%', 'height': '33px', 'display': 'inline-block'}
+                               ),style={'width': '10%', 'height': '33px', 'display': 'inline-block'}),
+                  html.Div(dcc.Dropdown(id='cl_drp_LnLeq_spec', placeholder="Select parameter",
+                                        options=['Leq', 'L95'],
+                                        value='Leq',
+                                        clearable=False,
+                                        style={'width': '100%', 'height': '33px', 'display': 'inline-block'}
+                                        ), style={'width': '10%', 'height': '33px', 'display': 'inline-block'}),
+                  dbc.Button(id="cl_btn_plotspec", children="(re)plot", color="primary", size="sm",
+                             style={'width': 'auto', "verticalAlign": "top", 'display': 'inline-block', 'height': '33px'}
+                             )
+                  ],style={"width": "100%", "height": "33px", 'display': 'inline-block'})],
+                className="border border-5 bg-secondary"),
+        dbc.Row(children=[dcc.Graph(id='cl_fig_spect', config={"modeBarButtonsToRemove": ['lasso2d']})],
+                className="border border-5 bg-secondary")
+        ])
+    return c
+def c_tabs_together():
+    """3 tabs together: time, stat and spect"""
+    c = html.Div([
+        dbc.Tabs([
+            dbc.Tab(children=c_tab_time(), label="Time", tab_id="tab_timeseries"),
+            dbc.Tab(children=c_tab_stats(), label="Stats", tab_id="tab_stats"),
+            dbc.Tab(children=c_tab_spect(), label="Spect", tab_id="tab_spect")],
+            id="tabstotal",
+            active_tab="tab_timeseries")])
+    return c
+def c_divhelpfields():
+    """ help fields that could be hidden"""
+    c = html.Div([
+        html.P(children="helpfields"),
+        html.Div(id="cl_begintime",
+                #children=begintime,
+                style={'display': 'inline-block'}),
+        # dcc.Store(id="cl_begintime", data=''),
+        html.Div(id="cl_ann", children='no audiofile loaded',
+                 style={'margin-left': '10px', 'display': 'inline-block'}),
+        html.Div(id="cl_selectbegin", children='no domain selection begin', style={'display': 'inline-block'}),
+        html.Div(id="cl_selectend", children='no domain selection end',
+                 style={'margin-left': '10px', 'display': 'inline-block'}),
+        html.Div(id="cl_audiofile", children='no audiofile loaded', hidden=False,
+                 style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
+        html.Div(id="cl_markererase", children="marker delete not yet used", hidden=False,
+                 style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
+        html.Div(id="cl_markerdraw", children="marker add not yet used", hidden=False,
+                 style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
+        html.Div(id="cl_statsrefresh", children="stats refresh not yet used", hidden=False,
+                 style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
+        html.Div(id="cl_hlp_filename", children="filename not yet known", hidden=False,
+                 style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
+        html.Div(id="cl_hlp_save", children="button save not yet used", hidden=False,
+                 style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
+        html.Div(id="cl_hlp_figure", children="figure not loaded yet", hidden = False),
+        html.Div(id="cl_hlp_columnorder", children="Columns are ordered like this: ..."),
+        html.Div(dcc.Store(id='cl_store_df', data=dict())),
+        html.Div(dcc.Store(id='cl_store_c_always', data=dict())),
+        html.Div(dcc.Store(id='cl_store_c_markers', data=dict())),
+        html.Div(dcc.Store(id='cl_allowed_audiofiles_store', data=dict())),
+        html.Div(id="cl_debug_selected_label",
+        children="cl_debug_selected_label: hier komt debuginfo van geselecteerde label"),
+        html.Div(id="cl_debug_dcc_filled", children="dccstore empty"),
+    ], hidden=True)
+    return c
+def c_total_layout():
+    c = dbc.Container([
+        dbc.Row([
+            dbc.Col([c_lefties()], width=2),
+            dbc.Col([c_tabs_together()], width=10)]),
+        dbc.Row(dbc.Col([c_divhelpfields()], width=12))], fluid=True)
+    return c
