@@ -20,7 +20,10 @@ def data_spec_leq_or_ln(dct_df, m, parameter):
             lst_specval.append((logmean_of_column(df,sp)))
     else:
         for sp in lst_spec_cols:
-            lst_specval.append((round(np.percentile(df[sp], 5),1)))
+            # selected parameter ='L1, L5, L10
+            # L95 ==> n = 100 - 95 reversed percentiles in acoustics
+            n = 100 - (int(parameter[1:]))
+            lst_specval.append((round(np.percentile(df[sp], n),1)))
     # list of a-weightings
     lst_aweight = lst_tertsbandweging('A')
     # make a spectrum data dictionary and create a dataframe
@@ -33,12 +36,31 @@ def data_spec_leq_or_ln(dct_df, m, parameter):
         broadband = logmean_of_column(df,str_c_laeq1s)
         broadbandfromspec = round(10 * np.log10((10 ** ((df_spectrum['alevel_t']) / 10)).sum()),1)
     else:
-        broadband = round(np.percentile(df[str_c_laeq1s], 5), 1)
+        broadband = round(np.percentile(df[str_c_laeq1s], n), 1)
         broadbandfromspec = round(10 * np.log10((10 ** ((df_spectrum['alevel_t']) / 10)).sum()), 1)
-
-    print("broadband - broadbandfromspec:", round(broadband - broadbandfromspec,1))
+    inconsistentie = round(broadband - broadbandfromspec,1)
+    print("broadband - broadbandfromspec:", inconsistentie)
+    df_spectrum = pas_dataframe_aan(df_spectrum, inconsistentie)
     # add broadband tot spec making a tmp mini dataframe
     dct_tmp = {'hz': 'tot_A', 'zlevel_t':broadband, 'aweight':0, 'laeq_t':0}
     df_tmp = pd.DataFrame([dct_tmp])
     df_spectrum = pd.concat([df_spectrum, df_tmp], ignore_index=True)
     return df_spectrum
+
+
+def pas_dataframe_aan(df, inconsistentie):
+    """
+    Past het DataFrame aan door:
+    - inconsistentie te verrekenen van elke waarde in 'zlevel_t'
+    - 'alevel_t' opnieuw te berekenen als 'zlevel_t' + 'aweight'
+
+    Parameters:
+        df (pd.DataFrame): DataFrame met kolommen 'zlevel_t' en 'aweight'
+
+    Returns:
+        pd.DataFrame: Aangepast DataFrame
+    """
+    df = df.copy()  # om het origineel niet te overschrijven
+    df['zlevel_t'] = df['zlevel_t'] + inconsistentie
+    df['alevel_t'] = df['zlevel_t'] + df['aweight']
+    return df

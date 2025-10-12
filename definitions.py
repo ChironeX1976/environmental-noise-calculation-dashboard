@@ -56,6 +56,10 @@ def lst_standard_statscolumn_values():
 def lst_standard_statscolumn_alias():
     lst =["la1", "la5", "la10", "la50", "la90", "la95", "la99"]
     return lst
+def lst_standard_statscolumn_spectrum():
+    # used in tab spectrum dropdownlist
+    lst = ["L1", "L5", "L10", "L50", "L90", "L95", "L99"]
+    return lst
 def lst_tertsbandweging(strtype):
     # 30 in total, start: 25Hz end: 20000Hz
     lst=[]

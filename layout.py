@@ -1,6 +1,6 @@
 import dash_bootstrap_components as dbc
 from dash import dcc, html, dash_table
-from definitions import get_std_audio_path, get_std_file_path
+from definitions import get_std_audio_path, get_std_file_path, lst_standard_statscolumn_spectrum
 """ 
 The components of the dash web-page are created here, web page looks like this:
 --------------------------------------
@@ -119,7 +119,7 @@ def c_tab_spect():
                               style={'width': '100%', 'height': '33px', 'display': 'inline-block'}
                                ),style={'width': '10%', 'height': '33px', 'display': 'inline-block'}),
                   html.Div(dcc.Dropdown(id='cl_drp_LnLeq_spec', placeholder="Select parameter",
-                                        options=['Leq', 'L95'],
+                                        options=['Leq'] + lst_standard_statscolumn_spectrum(),
                                         value='Leq',
                                         clearable=False,
                                         style={'width': '100%', 'height': '33px', 'display': 'inline-block'}

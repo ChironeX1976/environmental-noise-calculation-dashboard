@@ -336,7 +336,7 @@ def Ln_of_column(df_in, str_col, lst_Ln):
             lst_Ln: list of percentiles to be calculated
         """
     lst_rslt_Ln = []
-    if len(df_in)<10: #errorhandling
+    if len(df_in)<10: #errorhandling if less then 10 seconds of data, no stats are calculated
         lst_rslt_Ln =[np.nan,]*7
     else:
         for n in lst_Ln[1]:
