@@ -20,12 +20,13 @@ from plot import create_fig_time_vs_db, dct_timeannotationlayout, fig_add_annota
 
 from layout import c_total_layout
 
-folder_root, folder_data = project_folder_and_path()
+#folder_root, folder_data = project_folder_and_path()
 
 # ######################################################################################
 # # #########                 BUILD DASHBOARD                                  #########
 # ######################################################################################
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
+server=app.server # <-- belangrijk voor deployment
 app.layout = c_total_layout()
 # ######################################################################################
 # #########                CALLBACKS server-side                               #########
