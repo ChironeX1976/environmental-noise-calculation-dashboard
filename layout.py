@@ -95,7 +95,7 @@ def c_tab_time():
 def c_tab_stats():
     c = html.Div(dbc.Row([html.Div(
         [
-        html.Div("Statistical parameters of markers, based on laeq1s (not laf) refresh to calculate"),
+        html.Div("Statistical parameters of markers, based on laeq1s (not laf. Refresh to calculate"),
         dbc.Button(id="cl_btnstatrefresh", children="refresh", color="primary", size="sm",
                        style={"verticalAlign": "top"}),
         dash_table.DataTable(id ="cl_tbl_markersummary",
@@ -144,40 +144,40 @@ def c_tabs_together():
             active_tab="tab_timeseries")])
     return c
 def c_divhelpfields():
-    """ help fields that could be hidden"""
-    c = html.Div([
-        html.P(children="helpfields"),
-        html.Div(id="cl_begintime",
-                #children=begintime,
-                style={'display': 'inline-block'}),
-        # dcc.Store(id="cl_begintime", data=''),
-        html.Div(id="cl_ann", children='no audiofile loaded',
-                 style={'margin-left': '10px', 'display': 'inline-block'}),
+    """Helpvelden, met aparte zichtbare en verborgen secties"""
+
+    # Verborgen container
+    hidden_container = html.Div([
+        html.P(children="Verborgen helpfields"),
+        html.Div(id="cl_begintime", style={'display': 'inline-block'}),
+        html.Div(id="cl_ann", children='no audiofile loaded', style={'margin-left': '10px', 'display': 'inline-block'}),
         html.Div(id="cl_selectbegin", children='no domain selection begin', style={'display': 'inline-block'}),
-        html.Div(id="cl_selectend", children='no domain selection end',
-                 style={'margin-left': '10px', 'display': 'inline-block'}),
-        html.Div(id="cl_audiofile", children='no audiofile loaded', hidden=False,
-                 style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
-        html.Div(id="cl_markererase", children="marker delete not yet used", hidden=False,
-                 style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
-        html.Div(id="cl_markerdraw", children="marker add not yet used", hidden=False,
-                 style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
-        html.Div(id="cl_statsrefresh", children="stats refresh not yet used", hidden=False,
-                 style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
-        html.Div(id="cl_hlp_filename", children="filename not yet known", hidden=False,
-                 style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
-        html.Div(id="cl_hlp_save", children="button save not yet used", hidden=False,
-                 style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
-        html.Div(id="cl_hlp_figure", children="figure not loaded yet", hidden = False),
+        html.Div(id="cl_selectend", children='no domain selection end', style={'margin-left': '10px', 'display': 'inline-block'}),
+        html.Div(id="cl_audiofile", children='no audiofile loaded', hidden=False, style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
+        html.Div(id="cl_markererase", children="marker delete not yet used", hidden=False, style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
+        html.Div(id="cl_markerdraw", children="marker add not yet used", hidden=False, style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
+        html.Div(id="cl_statsrefresh", children="stats refresh not yet used", hidden=False, style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
+        html.Div(id="cl_hlp_filename", children="filename not yet known", hidden=False, style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
+        html.Div(id="cl_hlp_save", children="button save not yet used", hidden=False, style={'margin-left': '10px', 'display': 'inline-block', 'width': '100%'}),
+        html.Div(id="cl_hlp_figure", children="figure not loaded yet", hidden=False),
         html.Div(id="cl_hlp_columnorder", children="Columns are ordered like this: ..."),
         html.Div(dcc.Store(id='cl_store_df', data=dict())),
         html.Div(dcc.Store(id='cl_store_c_always', data=dict())),
         html.Div(dcc.Store(id='cl_store_c_markers', data=dict())),
         html.Div(dcc.Store(id='cl_allowed_audiofiles_store', data=dict())),
-        html.Div(id="cl_debug_selected_label",
-        children="cl_debug_selected_label: hier komt debuginfo van geselecteerde label"),
+        html.Div(id="cl_debug_selected_label", children="cl_debug_selected_label: hier komt debuginfo van geselecteerde label"),
         html.Div(id="cl_debug_dcc_filled", children="dccstore empty"),
     ], hidden=True)
+
+    # Zichtbare container
+    visible_container = html.Div([
+        html.Div(id="cl_extra_visible", children="Enkel voor didactisch gebruik.  © Kris De Beleir"
+                 )
+    ])
+
+    # Combineer beide in één variabele
+    c = html.Div([hidden_container, visible_container])
+
     return c
 def c_total_layout():
     c = dbc.Container([

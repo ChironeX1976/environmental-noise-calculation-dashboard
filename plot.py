@@ -10,7 +10,7 @@ def lst_seriekleuren():
     lst_kleuren = ['black', 'red', 'brown', 'magenta', 'black', 'green', 'purple']
     return lst_kleuren
 def lst_markerkleuren():
-    lst_kleuren = ['red', 'blue', 'yellow', 'pink', 'purple', 'brown', 'salmon']
+    lst_kleuren = ['red', 'green', 'blue', 'brown', 'aqua', 'purple', 'salmon', 'pink', 'orange', 'fuchsia', 'lime', 'teal', 'black']
     return lst_kleuren
 
 def create_fig_time_vs_db(df,
