@@ -2,11 +2,14 @@
 This dashboard should help with environmental noise calculation. 
 It is created for **educational** **purposes**.
 It should read any dataset from a sound level meter, but for now, it only works with a standardized dataset made from a
-bruel and kjaer or a 01dB-fusion
+bruel and kjaer or a 01dB-fusion or a SVANTEK 959
 
 This standard dataset comes from https://github.com/ChironeX1976/standardnoisefile
 
 Only for educational purposes.
+
+https://environmental-noise-calculation.onrender.com/
+
 
 **screenshots:**
 timeseries
