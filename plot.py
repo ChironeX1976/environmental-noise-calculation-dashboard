@@ -10,8 +10,32 @@ def lst_seriekleuren():
     lst_kleuren = ['black', 'red', 'brown', 'magenta', 'black', 'green', 'purple']
     return lst_kleuren
 def lst_markerkleuren():
-    lst_kleuren = ['red', 'green', 'blue', 'brown', 'aqua', 'purple', 'salmon', 'pink', 'orange', 'fuchsia', 'lime', 'teal', 'black']
+    lst_kleuren = ['green', 'blue', 'brown', 'aqua', 'purple', 'salmon', 'pink', 'orange', 'fuchsia', 'lime', 'teal', 'yellow', 'black', 'grey']
     return lst_kleuren
+
+def bepaal_markerkleur(markernaam, kleurteller):
+    """
+    Bepaalt de kleur op basis van de marker naam en een teller.
+
+    :param markernaam: Naam van de marker (string)
+    :param kleurteller: Teller voor de algemene kleurenlijst (int)
+    :return: De gekozen kleur (string) en de bijgewerkte kleurteller (int)
+    """
+    if markernaam.lower() == 'exclude':
+        # Vaste kleur voor 'Exclude' met TRANSPARANTIE (alpha = 0.3)
+        # rood (255, 0, 0) met 30% dekking
+        gekozen_kleur = 'rgba(255, 0, 0, 0.3)'
+        # Teller wordt NIET verhoogd voor de speciale 'Exclude' marker
+        nieuwe_kleurteller = kleurteller
+    else:
+        # Logica voor de algemene kleurenreeks
+        kleur_index = kleurteller % len(lst_markerkleuren())
+        gekozen_kleur = lst_markerkleuren()[kleur_index]
+        # Verhoog de teller alleen voor 'normale' markers
+        nieuwe_kleurteller = kleurteller + 1
+
+    return gekozen_kleur, nieuwe_kleurteller
+
 
 def create_fig_time_vs_db(df,
                           lst_fld_always,
@@ -39,13 +63,24 @@ def create_fig_time_vs_db(df,
                       line=dict(width=1, color='black'),
                       marker=dict(color='rgba(0,0,0,0)'),  # opacity =0
                       row=2, col=1)
-
+    kleurteller = 0
     # markers
     for i in range(0, len(lst_fld_mark)):
-        fig.add_trace(go.Scattergl(x=df[lst_fld_always[0]],
+        markernaam = str(lst_fld_mark[i])
+        # kleurtjes kiezen
+        gekozen_kleur, kleurteller = bepaal_markerkleur(markernaam, kleurteller)
+
+        if markernaam.lower()=='exclude':
+            fig.add_trace(go.Scattergl(x=df[lst_fld_always[0]],
+                                       y=df[lst_fld_mark[i]].fillna(0),
+                                       mode='lines', name=markernaam,fill="tozeroy",
+                                       line=dict(width=0, color=gekozen_kleur)), secondary_y=True,
+                          row=2, col=1)
+        else:
+            fig.add_trace(go.Scattergl(x=df[lst_fld_always[0]],
                                    y=df[lst_fld_mark[i]] * (i+1),
-                                   mode='lines', name=str(lst_fld_mark[i]),
-                                   line=dict(width=3, color=lst_markerkleuren()[i])),
+                                   mode='lines', name=markernaam,
+                                   line=dict(width=3, color=gekozen_kleur)),
                       row=1, col=1)
     # layout
 
@@ -90,7 +125,7 @@ def dct_timeannotationlayout(time):
         showarrow=True,
         arrowhead=0,  # geen kop op de pijl
         ax=0,  #
-        ay=500,  # een pijl van 500 pixels lang boven het label
+        ay= 500, #-int(hght*0.3), #-int(700 * 0.3), #,  # een pijl van 500 pixels lang boven het label
         font=dict(family="Courier New, monospace", size=14, color="#ffffff"),
         align="center",
         arrowcolor = "rebeccapurple",
@@ -127,7 +162,12 @@ def fig_patch_updated_marker(fig,str_marker,dct_df):
     for i, trace in enumerate(fig['data']):
         if trace['name'] == str_marker:
             marker_i = i
-    patched_figure["data"][marker_i]["y"] = df[str_marker].values * (marker_i)
+    if str_marker == 'exclude':
+        patched_figure["data"][marker_i]["y"] = df[str_marker].values * (marker_i)
+        patched_figure["data"][marker_i]["y"] = df[str_marker].fillna(0)
+
+    else:
+        patched_figure["data"][marker_i]["y"] = df[str_marker].values * (marker_i)
     return patched_figure
 
 def fig_patch_renamed_marker(fig,newname, oldname):
