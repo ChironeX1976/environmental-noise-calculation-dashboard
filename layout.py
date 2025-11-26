@@ -95,7 +95,7 @@ def c_tab_time():
 def c_tab_stats():
     c = html.Div(dbc.Row([html.Div(
         [
-        html.Div("Statistical parameters of markers, based on laeq1s (not laf. Refresh to calculate"),
+        html.Div("Statistical parameters of markers, based on laeq1s. Refresh to calculate. No stats are calculated if duration of marker < 10 s."),
         dbc.Button(id="cl_btnstatrefresh", children="refresh", color="primary", size="sm",
                        style={"verticalAlign": "top"}),
         dash_table.DataTable(id ="cl_tbl_markersummary",
