@@ -88,14 +88,14 @@ def c_tab_time():
         ],
         className="border border-5 bg-secondary"),
 
-    dbc.Row([dcc.Graph(id='cl_fig_timeseries', config={"modeBarButtonsToRemove": ['lasso2d','zoomIn2d','zoomOut2d', 'resetScale2d']})],
+    dbc.Row([dcc.Graph(id='cl_fig_timeseries', config={"modeBarButtonsToRemove": ['lasso2d']})],
         className="border border-5 bg-secondary"),
     ])
     return c
 def c_tab_stats():
     c = html.Div(dbc.Row([html.Div(
         [
-        html.Div("Statistical parameters of markers are based on laeq1s. Refresh to calculate"),
+        html.Div("Statistical parameters of markers, based on laeq1s (not laf. Refresh to calculate"),
         dbc.Button(id="cl_btnstatrefresh", children="refresh", color="primary", size="sm",
                        style={"verticalAlign": "top"}),
         dash_table.DataTable(id ="cl_tbl_markersummary",
@@ -167,13 +167,13 @@ def c_divhelpfields():
         html.Div(dcc.Store(id='cl_allowed_audiofiles_store', data=dict())),
         html.Div(id="cl_debug_selected_label", children="cl_debug_selected_label: hier komt debuginfo van geselecteerde label"),
         html.Div(id="cl_debug_dcc_filled", children="dccstore empty"),
-    ], hidden=False)
+    ], hidden=True)
 
     # Zichtbare container
     visible_container = html.Div([
-        html.Div(id="cl_extra_visible", children="Enkel voor didactisch gebruik.  © Kris De Beleir."
+        html.Div(id="cl_extra_visible", children="Enkel voor didactisch gebruik.  © Kris De Beleir"
                  )
-    ] )
+    ])
 
     # Combineer beide in één variabele
     c = html.Div([hidden_container, visible_container])
@@ -184,5 +184,5 @@ def c_total_layout():
         dbc.Row([
             dbc.Col([c_lefties()], width=2),
             dbc.Col([c_tabs_together()], width=10)]),
-        dbc.Row(dbc.Col([c_divhelpfields()], width=12), className="mt-0 pt-0 mb-0 pb-0")], fluid=True)
+        dbc.Row(dbc.Col([c_divhelpfields()], width=12))], fluid=True)
     return c
